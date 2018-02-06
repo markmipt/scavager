@@ -31,16 +31,24 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
     df1['length'] = df1['peptide'].apply(len)
     df1 = df1[df1['length'] >= 6]
     df1['spectrum'] = df1['spectrum'].apply(lambda x: x.split(' RTINS')[0])
+    df1['RT exp'] = df1['retention_time_sec'] / 60
+    df1 = df1.drop(['retention_time_sec', ], axis=1)
     df1['massdiff_int'] = df1['massdiff'].apply(lambda x: int(round(x, 0)))
     df1['massdiff_ppm'] = 1e6 * df1['massdiff'] / df1['calc_neutral_pep_mass']
     df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix)
     df1 = split_decoys(df1)
     df1 = remove_column_hit_rank(df1)
-    df1_f = aux.filter(df1, fdr=0.01, key='expect', is_decoy='decoy')
+    df1_f = aux.filter(df1, fdr=0.01, key='expect', is_decoy='decoy', correction=1)
+    print('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d' \
+             % (df1_f[~df1_f['decoy']].shape[0]))
+    print('Calibrating retention model...')
     retention_coefficients = achrom.get_RCs_vary_lcp(df1_f['peptide'].values, \
-                                                     df1_f['retention_time_sec'].values)
+                                                     df1_f['RT exp'].values)
+    df1_f['RT pred'] = df1_f['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
     df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
-    df1['RT diff'] = df1['RT pred'] - df1['retention_time_sec']
+    _, _, r_value, std_value = aux.linear_regression(df1_f['RT pred'], df1_f['RT exp'])
+    print('R^2 = %f , std = %f' % (r_value**2, std_value))
+    df1['RT diff'] = df1['RT pred'] - df1['RT exp']
     return df1
 
 def get_features(dataframe):
@@ -49,7 +57,7 @@ def get_features(dataframe):
     for feature in feature_columns:
         if feature not in ['expect', 'hyperscore', 'calc_neutral_pep_mass', 'bscore', 'yscore', \
                             'massdiff', 'massdiff_ppm', 'nextscore', 'RT pred', 'RT diff', \
-                            'sumI', 'retention_time_sec', 'precursor_neutral_mass', \
+                            'sumI', 'RT exp', 'precursor_neutral_mass', \
                             'num_missed_cleavages', 'tot_num_ions', 'num_matched_ions', 'length']:
             columns_to_remove.append(feature)
     feature_columns = feature_columns.drop(columns_to_remove)

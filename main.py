@@ -9,7 +9,7 @@ def process_file(args):
     # print(df1.shape[0])
     df1 = df1[~df1['decoy1']]
     # print(df1.shape[0])
-    df1_f2 = aux.filter(df1, fdr=0.01, key='PEP', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=0.5)
+    df1_f2 = aux.filter(df1, fdr=0.01, key='PEP', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=0.5, correction=1)
     real_false = df1_f2[df1_f2['protein'].apply(lambda x: all(z.startswith('DECOY_') for z in x))].shape[0]
     real_target = df1_f2.shape[0]
     print(real_false * 100 / real_target, real_target)
