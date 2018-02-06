@@ -4,6 +4,25 @@ import numpy as np
 import random
 import lightgbm as lgb
 from sklearn.model_selection import train_test_split
+from os import path, mkdir
+
+def get_output_basename(fname):
+    basename = path.basename(fname)
+    splt = path.splitext(basename)
+    print(splt)
+    basename = splt[0]
+    if 'pep' not in splt[1].lower():
+        basename = path.splitext(basename)[0]
+    return basename
+
+def get_output_folder(outfolder, fname):
+    if not outfolder:
+        return path.dirname(path.realpath(fname))
+    else:
+        tmp_outfolder = path.join(path.dirname(path.realpath(fname)), outfolder)
+        if not path.isdir(tmp_outfolder):
+            mkdir(tmp_outfolder)
+        return tmp_outfolder
 
 def calc_RT(seq, RC):
     try:
