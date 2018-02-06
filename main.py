@@ -7,7 +7,7 @@ def process_file(args):
     outfolder = get_output_folder(args['o'], fname)
     outbasename = get_output_basename(fname)
     print('Loading file %s...' % (path.basename(fname), ))
-    df1 = prepare_dataframe_xtandem(fname, decoy_prefix='DOUBLE_')
+    df1 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'])
     df1 = calc_PEP(df1)
     df1 = df1[~df1['decoy1']]
     df1_f2 = aux.filter(df1, fdr=0.01, key='PEP', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=0.5, correction=1)

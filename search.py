@@ -15,6 +15,7 @@ def run():
 
     parser.add_argument('file', help='input pepXML file')
     parser.add_argument('-o', help='path to output folder', default=False)
+    parser.add_argument('-prefix', help='decoy prefix', default='DECOY_')
     # parser.add_argument('-d', help='path to protein fasta file', required=True)
     # parser.add_argument('-ptol', help='precursor mass tolerance in ppm', default=10.0, type=float)
     # parser.add_argument('-rtt', help='sum of squared sigmas threshold', default=2.5, type=float)
@@ -28,7 +29,6 @@ def run():
     # parser.add_argument('-cmax', help='max precursor charge', default=5, type=int)
     # parser.add_argument('-fmods', help='fixed modifications. in mass1@aminoacid1,mass2@aminoacid2 format', default='57.021464@C')
     # parser.add_argument('-ad', help='add decoy', default=0, type=int)
-    # parser.add_argument('-prefix', help='decoy prefix', default='DECOY_')
     # parser.add_argument('-elude', help='path to elude binary file. If empty, the built-in additive model will be used for RT prediction', default='')
     args = vars(parser.parse_args())
 
