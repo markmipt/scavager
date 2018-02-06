@@ -89,7 +89,7 @@ def get_gbm_model(df):
         'feature_fraction': 0.95,
         'bagging_fraction': 0.95,
         'bagging_freq': 5,
-        'verbose': 1,
+        'verbose': 0,
        'min_data_in_bin': 1,
        'min_data': 1,
 #        'min_sum_hessian_in_leaf': 0.001,
@@ -107,11 +107,11 @@ def get_gbm_model(df):
     cv_result_lgb = lgb.cv(params, 
                         lgb_train, 
                         num_boost_round=2000, 
-                        nfold=5, 
+                        nfold=9, 
                         stratified=True, 
                         early_stopping_rounds=10, 
-                        verbose_eval=1.0, 
-                        show_stdv=True)
+                        verbose_eval=False, 
+                        show_stdv=False)
     
     num_boost_rounds_lgb = len(cv_result_lgb['auc-mean'])
     # print(cv_result_lgb['auc-mean'])
