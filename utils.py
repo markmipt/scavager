@@ -1,10 +1,11 @@
 import pandas as pd
-from pyteomics import pepxml, achrom, auxiliary as aux
+from pyteomics import pepxml, achrom, auxiliary as aux, mass
 import numpy as np
 import random
 import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 from os import path, mkdir
+from collections import Counter
 
 def get_output_basename(fname):
     basename = path.basename(fname)
@@ -44,6 +45,44 @@ def remove_column_hit_rank(df):
         print('no hit_rank column')
         return df
 
+def parse_mods(df_raw):
+    mods_counter = Counter()
+    sequence, mods = df_raw['peptide'], df_raw['modifications']
+    if mods:
+        for mod in mods.split(','):
+            mod_mass, aa_ind = mod.split('@')
+            mod_mass = float(mod_mass)
+            aa_ind = int(aa_ind)
+            if aa_ind == 0:
+                aa = 'N_term'
+                mod_mass = round(mod_mass - 1.007825, 3)
+            elif aa_ind == len(sequence) + 1:
+                aa = 'C_term'
+                mod_mass = round(mod_mass - 17.002735, 3)
+            else:
+                aa = sequence[aa_ind-1]
+                mod_mass = round(mod_mass - mass.std_aa_mass[aa], 3)
+            mod_name = 'mass shift %.3f at %s' % (mod_mass, aa)
+            mods_counter[mod_name] += 1
+    return mods_counter
+
+def add_mod_info(df_raw, mod):
+    sequence, mods_counter = df_raw['peptide'], df_raw['mods_counter']
+    mod_aa = mod.split(' at ')[1]
+    if 'term' not in mod_aa and mod_aa not in sequence:
+        return -1
+    else:
+        return mods_counter.get(mod, 0)
+
+def prepare_mods(df):
+    all_mods = set()
+    for cnt in df['mods_counter'].values:
+        for k in cnt.keys():
+            all_mods.add(k)
+    for mod in all_mods:
+        df[mod] = df.apply(add_mod_info, axis=1, mod=mod)
+    return df
+
 def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
     df1 = pepxml.DataFrame(infile_path)
     df1['length'] = df1['peptide'].apply(len)
@@ -56,6 +95,8 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
     df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix)
     df1 = split_decoys(df1)
     df1 = remove_column_hit_rank(df1)
+    df1['mods_counter'] = df1.apply(parse_mods, axis=1)
+    df1 = prepare_mods(df1)
     df1_f = aux.filter(df1, fdr=0.01, key='expect', is_decoy='decoy', correction=1)
     print('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d' \
              % (df1_f[~df1_f['decoy']].shape[0]))

@@ -56,21 +56,22 @@ def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel
     H1, _ = np.histogram(array_d, bins=cbins)
     H2, _ = np.histogram(array_t, bins=cbins)
     H3, _ = np.histogram(array_v, bins=cbins)
-    ax.bar(cbins[:-1], H1, width, align='edge',color=redcolor, alpha=0.4,edgecolor='#EEEEEE')
-    ax.bar(cbins[:-1], H2, width, align='edge',color=bluecolor, alpha=0.4,edgecolor='#EEEEEE')
-    ax.bar(cbins[:-1], H3, width, align='edge',color=greencolor, alpha=1,edgecolor='#EEEEEE')
+    ax.bar(cbins[:-1], H1, width, align='center',color=redcolor, alpha=0.4, edgecolor='#EEEEEE')
+    ax.bar(cbins[:-1], H2, width, align='center',color=bluecolor, alpha=0.4, edgecolor='#EEEEEE')
+    ax.bar(cbins[:-1], H3, width, align='center',color=greencolor, alpha=1, edgecolor='#EEEEEE')
     cbins=np.append(cbins[0],cbins)
     H1 = np.append(np.append(0,H1),0)
     H2 = np.append(np.append(0,H2),0)
-    ax.step(cbins, H2, where='post', color=bluecolor,alpha=0.8)
-    ax.step(cbins, H1, where='post', color=redcolor,alpha=0.8)
+    cbins -= width / 2
+    ax.step(cbins, H2, where='post', color=bluecolor, alpha=0.8)
+    ax.step(cbins, H1, where='post', color=redcolor, alpha=0.8)
     plt.ylabel(ylabel)
     plt.xlabel(xlabel)
     if width == 1.0:
-        ax.set_xticks(np.arange(int(cbins[0]) + 0.5, cbins[-1] + 0.5, 1.0))
+        ax.set_xticks(np.arange(int(cbins[0]), cbins[-1], 1))
         fig.canvas.draw()
-        labels = [item.get_text() for item in ax.get_xticklabels()]
-        ax.set_xticklabels([int(float(l)) for l in labels])
+        # labels = [item.get_text() for item in ax.get_xticklabels()]
+        # ax.set_xticklabels([int(float(l)) for l in labels])
 
 def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='massdiff_ppm'), fig, subplot_max_x, subplot_start, xlabel='precursor mass difference, ppm')
@@ -81,6 +82,14 @@ def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
     subplot_start += 1
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='assumed_charge'), fig, subplot_max_x, subplot_start, xlabel='precursor charge')
     subplot_start += 1
+    if len(set(df['massdiff_int'])) > 1:
+        plot_hist_descriptor(get_descriptor_array(df, df_f, dname='massdiff_int'), fig, subplot_max_x, subplot_start, xlabel='isotope mass difference, Da')
+        subplot_start += 1
+    for df_col in df.columns:
+        if df_col.startswith('mass shift'):
+            plot_hist_descriptor(get_descriptor_array(df, df_f, dname=df_col), fig, subplot_max_x, subplot_start, xlabel=df_col)
+            subplot_start += 1
+
 
     
 
