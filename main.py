@@ -35,5 +35,5 @@ def process_file(args):
         path_to_fasta = args['db']
     df_proteins = get_proteins_dataframe(df1_f2, df1_peptides_f, path_to_fasta=path_to_fasta)
     output_path_proteins = path.join(outfolder, outbasename + '_proteins.tsv')
-    df_proteins.to_csv(output_path_proteins, sep='\t', index=False)
+    df_proteins.to_csv(output_path_proteins, sep='\t', index=False, columns = ['dbname','description','PSMs','peptides','NSAF','sq','score','length']) 
 

@@ -1,11 +1,19 @@
 import pandas as pd
-from pyteomics import pepxml, achrom, auxiliary as aux, mass
+from pyteomics import pepxml, achrom, auxiliary as aux, mass, fasta
 import numpy as np
 import random
 import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 from os import path, mkdir
 from collections import Counter
+
+def process_fasta(df, path_to_fasta):
+    protsS = dict()
+    for x in fasta.read(path_to_fasta):
+        dbname = x[0].split(' ')[0]
+        protsS[dbname] = x[1]
+    df['sequence'] = df['dbname'].apply(lambda x: protsS.get(x, ''))
+    return df
 
 def get_proteins_dataframe(df1_f2, df1_peptides_f, path_to_fasta=False):
     print(path_to_fasta)
@@ -30,9 +38,11 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, path_to_fasta=False):
             if prot in proteins_dict:
                 proteins_dict[prot]['PSMs'] += 1
     df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
-    df_proteins['num peptides'] = df_proteins['peptides'].apply(len)
+    if path_to_fasta:
+        df_proteins = process_fasta(df_proteins, path_to_fasta)
     df_proteins['length'] = df_proteins['sequence'].apply(len)
     df_proteins['sq'] = df_proteins.apply(calc_sq, axis=1)
+    df_proteins['peptides'] = df_proteins['peptides'].apply(len)
     return df_proteins
 
 def calc_sq(df_raw):
