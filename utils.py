@@ -6,10 +6,10 @@ import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 from os import path, mkdir
 
+
 def get_output_basename(fname):
     basename = path.basename(fname)
     splt = path.splitext(basename)
-    print(splt)
     basename = splt[0]
     if 'pep' not in splt[1].lower():
         basename = path.splitext(basename)[0]
