@@ -13,9 +13,6 @@ def process_file(args):
     df1 = calc_PEP(df1)
     df1 = df1[~df1['decoy1']]
     df1_f2 = aux.filter(df1, fdr=outfdr, key='PEP', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=0.5, correction=1)
-    real_false = df1_f2[df1_f2['protein'].apply(lambda x: all(z.startswith('DECOY_') for z in x))].shape[0]
-    real_target = df1_f2.shape[0]
-    print(real_false * 100 / real_target, real_target)
 
     output_path_psms_full = path.join(outfolder, outbasename + '_PSMs_full.tsv')
     df1.to_csv(output_path_psms_full, sep='\t', index=False)
