@@ -116,9 +116,10 @@ def get_features(dataframe):
     for feature in feature_columns:
         if feature not in ['expect', 'hyperscore', 'calc_neutral_pep_mass', 'bscore', 'yscore', \
                             'massdiff', 'massdiff_ppm', 'nextscore', 'RT pred', 'RT diff', \
-                            'sumI', 'RT exp', 'precursor_neutral_mass', \
+                            'sumI', 'RT exp', 'precursor_neutral_mass', 'massdiff_int', \
                             'num_missed_cleavages', 'tot_num_ions', 'num_matched_ions', 'length']:
-            columns_to_remove.append(feature)
+            if not feature.startswith('mass shift'):
+                columns_to_remove.append(feature)
     feature_columns = feature_columns.drop(columns_to_remove)
     return feature_columns
 
