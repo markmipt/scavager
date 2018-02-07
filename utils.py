@@ -202,4 +202,6 @@ def calc_PEP(df):
     gbm_model = get_gbm_model(df)
     x_all = get_X_array(df, feature_columns)
     df['PEP'] = gbm_model.predict(x_all, num_iteration=gbm_model.best_iteration)
+    pep_min = df['PEP'].min()
+    df['log_score'] = np.log10(df['PEP'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
     return df

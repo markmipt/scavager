@@ -89,10 +89,9 @@ def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
         if df_col.startswith('mass shift'):
             plot_hist_descriptor(get_descriptor_array(df, df_f, dname=df_col), fig, subplot_max_x, subplot_start, xlabel=df_col)
             subplot_start += 1
-
-
-    
-
+    plot_hist_descriptor(get_descriptor_array(df, df_f, dname='log_score'), fig, subplot_max_x, subplot_start, xlabel='ML score')
+    subplot_start += 1
+  
 def get_bins(inarrays, bin_size_one=False):
     tmp = np.concatenate(inarrays)
     minv = tmp.min()
@@ -140,8 +139,8 @@ def get_fdbinsize(data_list):
 def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename):
     fig = plt.figure(figsize=(16, 12))
     dpi = fig.get_dpi()
-    fig.set_size_inches(2000.0/float(dpi), 2000.0/float(dpi))
-    subplot_max_x = 5
+    fig.set_size_inches(3000.0/float(dpi), 3000.0/float(dpi))
+    subplot_max_x = 6
     plot_basic_figures(df, df_f, fig, subplot_max_x, 1, 'PSMs')
     plot_basic_figures(df_peptides, df_peptides_f, fig, subplot_max_x, 4, 'peptides')
     plot_descriptors_figures(df, df_f, fig, subplot_max_x, 7)
