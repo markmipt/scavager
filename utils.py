@@ -7,6 +7,49 @@ from sklearn.model_selection import train_test_split
 from os import path, mkdir
 from collections import Counter
 
+def get_proteins_dataframe(df1_f2, df1_peptides_f, path_to_fasta=False):
+    print(path_to_fasta)
+    proteins_dict = dict()
+    for proteins, protein_descriptions, peptide in df1_peptides_f[['protein', 'protein_descr', 'peptide']].values:
+        for prot, prot_descr in zip(proteins, protein_descriptions):
+            if prot not in proteins_dict:
+                proteins_dict[prot] = dict()
+                proteins_dict[prot]['dbname'] = prot
+                proteins_dict[prot]['description'] = prot_descr
+                proteins_dict[prot]['PSMs'] = 0
+                proteins_dict[prot]['peptides'] = set()
+                proteins_dict[prot]['sequence'] = ''
+                proteins_dict[prot]['NSAF'] = 0
+                proteins_dict[prot]['sq'] = 0
+                proteins_dict[prot]['score'] = 0.0
+                proteins_dict[prot]['q-value'] = 1.0
+            proteins_dict[prot]['peptides'].add(peptide)
+
+    for proteins in df1_f2[['protein']].values:
+        for prot in proteins[0]:
+            if prot in proteins_dict:
+                proteins_dict[prot]['PSMs'] += 1
+    df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
+    df_proteins['num peptides'] = df_proteins['peptides'].apply(len)
+    df_proteins['length'] = df_proteins['sequence'].apply(len)
+    df_proteins['sq'] = df_proteins.apply(calc_sq, axis=1)
+    return df_proteins
+
+def calc_sq(df_raw):
+    protein = df_raw['sequence']
+    peptides = df_raw['peptides']
+    if not protein:
+        return 0
+    psq = [False for x in protein]
+    plen = len(protein)
+    for pep in peptides:
+        csize = len(pep)
+        for j in range(plen):
+            if protein[j:j+csize] == pep:
+                for y in range(csize):
+                    psq[j + y] = True
+    return float(sum(psq)) / len(psq) * 100
+
 def get_output_basename(fname):
     basename = path.basename(fname)
     splt = path.splitext(basename)

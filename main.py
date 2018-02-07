@@ -1,7 +1,9 @@
-from utils import prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder
+from utils import prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe
 from utils_figures import plot_outfigures
 from pyteomics import auxiliary as aux
 from os import path
+from collections import defaultdict
+import pandas as pd
 
 def process_file(args):
     fname = args['file']
@@ -26,3 +28,12 @@ def process_file(args):
     df1_peptides_f.to_csv(output_path_peptides, sep='\t', index=False)
 
     plot_outfigures(df1, df1_f2, df1_peptides, df1_peptides_f, outfolder, outbasename)
+
+    if args['db']:
+        path_to_fasta = path.abspath(args['db'])
+    else:
+        path_to_fasta = args['db']
+    df_proteins = get_proteins_dataframe(df1_f2, df1_peptides_f, path_to_fasta=path_to_fasta)
+    output_path_proteins = path.join(outfolder, outbasename + '_proteins.tsv')
+    df_proteins.to_csv(output_path_proteins, sep='\t', index=False)
+

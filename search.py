@@ -15,6 +15,8 @@ def run():
 
     parser.add_argument('file', help='input pepXML file')
     parser.add_argument('-o', help='path to output folder', default=False)
+    parser.add_argument('-db', help='path to fasta file. \
+                        Used for sequence coverage and LFQ calculation', default=False)
     parser.add_argument('-prefix', help='decoy prefix', default='DECOY_')
     parser.add_argument('-fdr', help='false discovery rate in %%', default=1.0, type=float)
     args = vars(parser.parse_args())
