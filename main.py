@@ -23,4 +23,9 @@ def process_file(args):
     output_path_psms = path.join(outfolder, outbasename + '_PSMs.tsv')
     df1_f2.to_csv(output_path_psms, sep='\t', index=False)
 
-    plot_outfigures(df1, df1_f2, outfolder, outbasename)
+    df1_peptides = df1.sort_values('PEP', ascending=True).drop_duplicates(['peptide'])
+    df1_peptides_f = aux.filter(df1_peptides, fdr=outfdr, key='PEP', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=0.5, correction=1)
+    output_path_peptides = path.join(outfolder, outbasename + '_peptides.tsv')
+    df1_peptides_f.to_csv(output_path_peptides, sep='\t', index=False)
+
+    plot_outfigures(df1, df1_f2, df1_peptides, df1_peptides_f, outfolder, outbasename)
