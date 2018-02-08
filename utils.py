@@ -2,6 +2,7 @@ import pandas as pd
 from pyteomics import pepxml, achrom, auxiliary as aux, mass, fasta
 import numpy as np
 import random
+SEED = 42
 import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 from os import path, mkdir
@@ -49,7 +50,7 @@ def process_fasta(df, path_to_fasta):
     df['sequence'] = df['dbname'].apply(lambda x: protsS.get(x, ''))
     return df
 
-def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, path_to_fasta=False):
+def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, path_to_fasta=False):
     print(path_to_fasta)
     proteins_dict = dict()
     for proteins, protein_descriptions, peptide, pep in df1_peptides_f[['protein', 'protein_descr', 'peptide', 'PEP']].values:
@@ -66,6 +67,7 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, path_to_fasta=F
                 proteins_dict[prot]['score'] = dict()
                 proteins_dict[prot]['q-value'] = 1.0
                 proteins_dict[prot]['decoy'] = prot.startswith(decoy_prefix)
+                proteins_dict[prot]['decoy2'] = prot in all_decoys_2
             proteins_dict[prot]['peptides set'].add(peptide)
             proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
 
@@ -120,13 +122,25 @@ def calc_RT(seq, RC):
     except:
         return 0
     
-def is_decoy(proteins, decoy_prefix='DECOY_'):
+def is_decoy(proteins, decoy_prefix):
     return all(z.startswith(decoy_prefix) for z in proteins)
 
-def split_decoys(df):
-    df['decoy1'] = df['decoy'].apply(lambda x: True if x and random.random() >= 0.5 else False)
-    df['decoy2'] = df.apply(lambda x: x['decoy'] and not x['decoy1'], axis=1)
-    return df
+def is_decoy_2(proteins, decoy_set):
+    return all(z in decoy_set for z in proteins)
+
+def split_decoys(df, decoy_prefix):
+    all_decoys = set()
+    for proteins in df[['protein']].values:
+        for dbname in proteins[0]:
+            if dbname.startswith(decoy_prefix):
+                all_decoys.add(dbname)
+    all_decoys = sorted(list(all_decoys)) # sort is done for working of random SEED
+    random.seed(SEED)
+    all_decoys_2 = set(random.sample(all_decoys, int(len(all_decoys)/2)))
+    df['decoy2'] = df['protein'].apply(is_decoy_2, decoy_set=all_decoys_2)
+    # df['decoy1'] = df['decoy'].apply(lambda x: True if x and random.random() >= 0.5 else False)
+    df['decoy1'] = df.apply(lambda x: x['decoy'] and not x['decoy2'], axis=1)
+    return df, all_decoys_2
 
 def remove_column_hit_rank(df):
     if 'hit_rank' in df.columns:
@@ -183,7 +197,7 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
     df1['massdiff_int'] = df1['massdiff'].apply(lambda x: int(round(x, 0)))
     df1['massdiff_ppm'] = 1e6 * df1['massdiff'] / df1['calc_neutral_pep_mass']
     df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix)
-    df1 = split_decoys(df1)
+    df1, all_decoys_2 = split_decoys(df1, decoy_prefix=decoy_prefix)
     df1 = remove_column_hit_rank(df1)
     df1['mods_counter'] = df1.apply(parse_mods, axis=1)
     df1 = prepare_mods(df1)
@@ -198,7 +212,7 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
     _, _, r_value, std_value = aux.linear_regression(df1_f['RT pred'], df1_f['RT exp'])
     print('R^2 = %f , std = %f' % (r_value**2, std_value))
     df1['RT diff'] = df1['RT pred'] - df1['RT exp']
-    return df1
+    return df1, all_decoys_2
 
 def get_features(dataframe):
     feature_columns = dataframe.columns
@@ -245,7 +259,9 @@ def get_gbm_model(df):
         'num_leaves': 10,
         'learning_rate': 0.1,
         'feature_fraction': 0.95,
+        'feature_fraction_seed': SEED,
         'bagging_fraction': 0.95,
+        'bagging_seed': SEED,
         'bagging_freq': 5,
         'verbose': 0,
        'min_data_in_bin': 1,
@@ -269,7 +285,7 @@ def get_gbm_model(df):
                         stratified=True, 
                         early_stopping_rounds=10, 
                         verbose_eval=False, 
-                        show_stdv=False)
+                        show_stdv=False, seed=SEED)
     
     num_boost_rounds_lgb = len(cv_result_lgb['auc-mean'])
     # print(cv_result_lgb['auc-mean'])
