@@ -5,7 +5,41 @@ import random
 import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 from os import path, mkdir
-from collections import Counter
+from collections import Counter, defaultdict
+
+
+def keywithmaxval(d):
+    #this method is much faster than using max(prots.iterkeys(), key=(lambda key: prots[key]))
+    v=list(d.values())
+    k=list(d.keys())
+    return k[v.index(max(v))]
+
+def get_protein_groups(df):
+    pept_prots = defaultdict(set)
+    prot_prots = defaultdict(set)
+    prot_pepts = dict()
+    for peptides, dbname in df[['peptides set', 'dbname']].values:
+        prot_pepts[dbname] = peptides
+        for peptide in peptides:
+            pept_prots[peptide].add(dbname)
+    for prots in pept_prots.values():
+        for dbname in prots:
+            prot_prots[dbname].update(prots)
+    prot_pepts_count = dict()
+    for k, v in prot_pepts.items():
+        prot_pepts_count[k] = len(v)
+    tostay = set()
+    while pept_prots:
+        bestprot = keywithmaxval(prot_pepts_count)
+        tostay.add(bestprot)
+        for pep in prot_pepts[bestprot]:
+            for k in pept_prots[pep]:
+                prot_pepts_count[k] -= 1
+            del pept_prots[pep]
+    df['groupleader'] = df['dbname'].apply(lambda x: x in tostay)
+    df['all proteins'] = df['dbname'].apply(lambda x: ';'.join(prot_prots[x]))
+    return df
+
 
 def process_fasta(df, path_to_fasta):
     protsS = dict()
@@ -25,14 +59,14 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, path_to_fasta=F
                 proteins_dict[prot]['dbname'] = prot
                 proteins_dict[prot]['description'] = prot_descr
                 proteins_dict[prot]['PSMs'] = 0
-                proteins_dict[prot]['peptides'] = set()
+                proteins_dict[prot]['peptides set'] = set()
                 proteins_dict[prot]['sequence'] = ''
                 proteins_dict[prot]['NSAF'] = 0
                 proteins_dict[prot]['sq'] = 0
                 proteins_dict[prot]['score'] = dict()
                 proteins_dict[prot]['q-value'] = 1.0
                 proteins_dict[prot]['decoy'] = prot.startswith(decoy_prefix)
-            proteins_dict[prot]['peptides'].add(peptide)
+            proteins_dict[prot]['peptides set'].add(peptide)
             proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
 
     for proteins in df1_f2[['protein']].values:
@@ -44,13 +78,13 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, path_to_fasta=F
         df_proteins = process_fasta(df_proteins, path_to_fasta)
     df_proteins['length'] = df_proteins['sequence'].apply(len)
     df_proteins['sq'] = df_proteins.apply(calc_sq, axis=1)
-    df_proteins['peptides'] = df_proteins['peptides'].apply(len)
+    df_proteins['peptides'] = df_proteins['peptides set'].apply(len)
     df_proteins['score'] = df_proteins['score'].apply(lambda x: np.prod(list(x.values())))
     return df_proteins
 
 def calc_sq(df_raw):
     protein = df_raw['sequence']
-    peptides = df_raw['peptides']
+    peptides = df_raw['peptides set']
     if not protein:
         return 0
     psq = [False for x in protein]

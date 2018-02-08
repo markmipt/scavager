@@ -1,4 +1,4 @@
-from utils import prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe
+from utils import prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups
 from utils_figures import plot_outfigures
 from pyteomics import auxiliary as aux
 from os import path
@@ -35,6 +35,10 @@ def process_file(args):
         path_to_fasta = args['db']
     df_proteins = get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'], path_to_fasta=path_to_fasta)
     df_proteins = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy', reverse=False, remove_decoy=True, ratio=1.0)
+    df_proteins = get_protein_groups(df_proteins)
     output_path_proteins = path.join(outfolder, outbasename + '_proteins.tsv')
-    df_proteins.to_csv(output_path_proteins, sep='\t', index=False, columns = ['dbname','description','PSMs','peptides','NSAF','sq','score','length']) 
+    df_proteins.to_csv(output_path_proteins, sep='\t', index=False, columns = ['dbname','description','PSMs','peptides','NSAF','sq','score','length', 'all proteins', 'groupleader']) 
 
+    df_protein_groups = df_proteins[df_proteins['groupleader']]
+    output_path_protein_groups = path.join(outfolder, outbasename + '_protein_groups.tsv')
+    df_protein_groups.to_csv(output_path_protein_groups, sep='\t', index=False, columns = ['dbname','description','PSMs','peptides','NSAF','sq','score','length', 'all proteins', 'groupleader']) 
