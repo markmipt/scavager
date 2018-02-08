@@ -11,10 +11,9 @@ try:
 except ImportError:
     pass
 
-redcolor='#FC6264'
-bluecolor='#70aed1'
-greencolor='#8AA413'
-
+redcolor = '#FC6264'
+bluecolor = '#70aed1'
+greencolor = '#8AA413'
 
 def get_basic_distributions(df):
     mz_array = ((df['calc_neutral_pep_mass'] + df['assumed_charge'] * 1.007276 ) / df['assumed_charge']).values
@@ -70,8 +69,6 @@ def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel
     if width == 1.0:
         ax.set_xticks(np.arange(int(cbins[0]), cbins[-1], 1))
         fig.canvas.draw()
-        # labels = [item.get_text() for item in ax.get_xticklabels()]
-        # ax.set_xticklabels([int(float(l)) for l in labels])
 
 def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='massdiff_ppm'), fig, subplot_max_x, subplot_start, xlabel='precursor mass difference, ppm')
@@ -147,3 +144,4 @@ def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename
     plt.grid(color='#EEEEEE')
     plt.tight_layout()
     plt.savefig(path.join(outfolder, outbasename) + '.png')
+    

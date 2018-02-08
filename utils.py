@@ -11,8 +11,8 @@ from collections import Counter, defaultdict
 
 def keywithmaxval(d):
     #this method is much faster than using max(prots.iterkeys(), key=(lambda key: prots[key]))
-    v=list(d.values())
-    k=list(d.keys())
+    v = list(d.values())
+    k = list(d.keys())
     return k[v.index(max(v))]
 
 def get_protein_groups(df):

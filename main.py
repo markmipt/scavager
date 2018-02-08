@@ -15,7 +15,6 @@ def process_file(args):
     df1, all_decoys_2 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'])
     df1 = calc_PEP(df1)
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
-    print('decoy2 group to all decoys ratio = %.2f' % (pep_ratio, ))
 
     output_path_psms_full = path.join(outfolder, outbasename + '_PSMs_full.tsv')
     df1.to_csv(output_path_psms_full, sep='\t', index=False)
@@ -37,8 +36,7 @@ def process_file(args):
     else:
         path_to_fasta = args['db']
     df_proteins = get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'], all_decoys_2=all_decoys_2, path_to_fasta=path_to_fasta)
-    prot_ratio = 0.5#np.sum(df_proteins['decoy2'])/np.sum(df_proteins['decoy'])
-    # print(prot_ratio)
+    prot_ratio = 0.5
     df_proteins = df_proteins[df_proteins.apply(lambda x: not x['decoy'] or x['decoy2'], axis=1)]
     df_proteins = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=prot_ratio)
     df_proteins = get_protein_groups(df_proteins)
