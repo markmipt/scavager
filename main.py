@@ -33,7 +33,8 @@ def process_file(args):
         path_to_fasta = path.abspath(args['db'])
     else:
         path_to_fasta = args['db']
-    df_proteins = get_proteins_dataframe(df1_f2, df1_peptides_f, path_to_fasta=path_to_fasta)
+    df_proteins = get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'], path_to_fasta=path_to_fasta)
+    df_proteins = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy', reverse=False, remove_decoy=True, ratio=1.0)
     output_path_proteins = path.join(outfolder, outbasename + '_proteins.tsv')
     df_proteins.to_csv(output_path_proteins, sep='\t', index=False, columns = ['dbname','description','PSMs','peptides','NSAF','sq','score','length']) 
 

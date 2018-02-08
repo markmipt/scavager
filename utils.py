@@ -15,10 +15,10 @@ def process_fasta(df, path_to_fasta):
     df['sequence'] = df['dbname'].apply(lambda x: protsS.get(x, ''))
     return df
 
-def get_proteins_dataframe(df1_f2, df1_peptides_f, path_to_fasta=False):
+def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, path_to_fasta=False):
     print(path_to_fasta)
     proteins_dict = dict()
-    for proteins, protein_descriptions, peptide in df1_peptides_f[['protein', 'protein_descr', 'peptide']].values:
+    for proteins, protein_descriptions, peptide, pep in df1_peptides_f[['protein', 'protein_descr', 'peptide', 'PEP']].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):
             if prot not in proteins_dict:
                 proteins_dict[prot] = dict()
@@ -29,9 +29,11 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, path_to_fasta=False):
                 proteins_dict[prot]['sequence'] = ''
                 proteins_dict[prot]['NSAF'] = 0
                 proteins_dict[prot]['sq'] = 0
-                proteins_dict[prot]['score'] = 0.0
+                proteins_dict[prot]['score'] = dict()
                 proteins_dict[prot]['q-value'] = 1.0
+                proteins_dict[prot]['decoy'] = prot.startswith(decoy_prefix)
             proteins_dict[prot]['peptides'].add(peptide)
+            proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
 
     for proteins in df1_f2[['protein']].values:
         for prot in proteins[0]:
@@ -43,6 +45,7 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, path_to_fasta=False):
     df_proteins['length'] = df_proteins['sequence'].apply(len)
     df_proteins['sq'] = df_proteins.apply(calc_sq, axis=1)
     df_proteins['peptides'] = df_proteins['peptides'].apply(len)
+    df_proteins['score'] = df_proteins['score'].apply(lambda x: np.prod(list(x.values())))
     return df_proteins
 
 def calc_sq(df_raw):
