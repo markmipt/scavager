@@ -9,6 +9,12 @@ from os import path, mkdir
 from collections import Counter, defaultdict
 
 
+def calc_NSAF(df):
+    df['NSAF'] = df['PSMs'] / df['length']
+    NSAF_sum = np.sum(df['NSAF'])
+    df['NSAF'] = df['NSAF'] / NSAF_sum
+    return df
+
 def keywithmaxval(d):
     #this method is much faster than using max(prots.iterkeys(), key=(lambda key: prots[key]))
     v = list(d.values())
@@ -77,21 +83,25 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, p
                 proteins_dict[prot]['PSMs'] += 1
     df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
     if path_to_fasta:
+        print(df_proteins.columns)
         df_proteins = process_fasta(df_proteins, path_to_fasta)
     df_proteins['length'] = df_proteins['sequence'].apply(len)
     df_proteins['sq'] = df_proteins.apply(calc_sq, axis=1)
+    df_proteins = calc_NSAF(df_proteins)
     df_proteins['peptides'] = df_proteins['peptides set'].apply(len)
     df_proteins['score'] = df_proteins['score'].apply(lambda x: np.prod(list(x.values())))
     return df_proteins
 
 def calc_sq(df_raw):
     protein = df_raw['sequence']
+    protein = protein.replace('L', 'I')
     peptides = df_raw['peptides set']
     if not protein:
         return 0
     psq = [False for x in protein]
     plen = len(protein)
     for pep in peptides:
+        pep = pep.replace('L', 'I')
         csize = len(pep)
         for j in range(plen):
             if protein[j:j+csize] == pep:
@@ -200,7 +210,7 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
     df1 = remove_column_hit_rank(df1)
     df1['mods_counter'] = df1.apply(parse_mods, axis=1)
     df1 = prepare_mods(df1)
-    df1_f = aux.filter(df1, fdr=0.01, key='expect', is_decoy='decoy', correction=1)
+    df1_f = aux.filter(df1, fdr=0.01, key='expect', is_decoy='decoy', correction=1, remove_decoy=True, formula=1)
     print('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d' \
              % (df1_f[~df1_f['decoy']].shape[0]))
     print('Calibrating retention model...')
