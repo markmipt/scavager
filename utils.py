@@ -209,7 +209,7 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
         df1['assumed_charge'] = df1['chargeState']
         df1['num_missed_cleavages'] = 0
         df1['spectrum'] = df1['spectrum title']
-        df1['massdiff'] = df1['experimentalMassToCharge'] - df1['calculatedMassToCharge']
+        df1['massdiff'] = (df1['experimentalMassToCharge'] - df1['calculatedMassToCharge']) * df1['assumed_charge']
         df1['calc_neutral_pep_mass'] = df1['calculatedMassToCharge'] * df1['chargeState'] - df1['chargeState'] * 1.00727649
         df1['protein'] = df1['protein description']
         df1['protein_descr'] = df1['protein description']
@@ -323,7 +323,6 @@ def calc_PEP(df):
 def calc_target_decoy_ratio(df):
     df = df.sort_values(by='expect', ascending=False)
     zvals = np.cumsum(df['decoy'].values) / (np.arange(1, df.shape[0] + 1, 1) - np.cumsum(df['decoy'].values))
-    print(zvals[:5], zvals[-5:])
     zvals = zvals[~np.isnan(zvals)]
     zvals = zvals[np.isfinite(zvals)]
     zvals = zvals[zvals >= 0.5]
