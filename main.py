@@ -1,4 +1,4 @@
-from utils import prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups
+from utils import prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups, calc_target_decoy_ratio
 from utils_figures import plot_outfigures
 from pyteomics import auxiliary as aux
 from os import path
@@ -14,7 +14,8 @@ def process_file(args):
     print('Loading file %s...' % (path.basename(fname), ))
     df1, all_decoys_2 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'])
     df1 = calc_PEP(df1)
-    pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
+    pep_ratio_orig = calc_target_decoy_ratio(df1)
+    pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy']) * pep_ratio_orig
 
     output_path_psms_full = path.join(outfolder, outbasename + '_PSMs_full.tsv')
     df1.to_csv(output_path_psms_full, sep='\t', index=False)

@@ -1,5 +1,5 @@
 import pandas as pd
-from pyteomics import pepxml, achrom, auxiliary as aux, mass, fasta
+from pyteomics import pepxml, achrom, auxiliary as aux, mass, fasta, mzid
 import numpy as np
 import random
 SEED = 42
@@ -7,7 +7,8 @@ import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 from os import path, mkdir
 from collections import Counter, defaultdict
-
+import warnings
+warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
 
 def calc_NSAF(df):
     df['NSAF'] = df['PSMs'] / df['length']
@@ -197,30 +198,60 @@ def prepare_mods(df):
     return df
 
 def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
-    df1 = pepxml.DataFrame(infile_path)
+    if infile_path.endswith('.pep.xml'):
+        df1 = pepxml.DataFrame(infile_path)
+    else:
+        df1 = mzid.DataFrame(infile_path)
+
+    if 'MS-GF:EValue' in df1.columns:
+        #MSGF search engine
+        df1['peptide'] = df1['PeptideSequence']
+        df1['assumed_charge'] = df1['chargeState']
+        df1['num_missed_cleavages'] = 0
+        df1['spectrum'] = df1['spectrum title']
+        df1['massdiff'] = df1['experimentalMassToCharge'] - df1['calculatedMassToCharge']
+        df1['calc_neutral_pep_mass'] = df1['calculatedMassToCharge'] * df1['chargeState'] - df1['chargeState'] * 1.00727649
+        df1['protein'] = df1['protein description']
+        df1['protein_descr'] = df1['protein description']
+        df1['expect'] = df1['MS-GF:EValue']
+
+    df1 = df1[~pd.isna(df1['peptide'])]
     df1['length'] = df1['peptide'].apply(len)
     df1 = df1[df1['length'] >= 6]
     df1['spectrum'] = df1['spectrum'].apply(lambda x: x.split(' RTINS')[0])
-    df1['RT exp'] = df1['retention_time_sec'] / 60
-    df1 = df1.drop(['retention_time_sec', ], axis=1)
+    if 'retention_time_sec' not in df1.columns:
+        df1['RT exp'] = 0
+    else:
+        df1['RT exp'] = df1['retention_time_sec'] / 60
+        df1 = df1.drop(['retention_time_sec', ], axis=1)
+
     df1['massdiff_int'] = df1['massdiff'].apply(lambda x: int(round(x, 0)))
-    df1['massdiff_ppm'] = 1e6 * df1['massdiff'] / df1['calc_neutral_pep_mass']
+    df1['massdiff_ppm'] = 1e6 * (df1['massdiff'] - df1['massdiff_int'] * 1.003354)/ df1['calc_neutral_pep_mass']
+
     df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix)
     df1, all_decoys_2 = split_decoys(df1, decoy_prefix=decoy_prefix)
     df1 = remove_column_hit_rank(df1)
-    df1['mods_counter'] = df1.apply(parse_mods, axis=1)
-    df1 = prepare_mods(df1)
+    try:
+        df1['mods_counter'] = df1.apply(parse_mods, axis=1)
+        df1 = prepare_mods(df1)
+    except:
+        pass
+
     df1_f = aux.filter(df1, fdr=0.01, key='expect', is_decoy='decoy', correction=1, remove_decoy=True, formula=1)
     print('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d' \
              % (df1_f[~df1_f['decoy']].shape[0]))
-    print('Calibrating retention model...')
-    retention_coefficients = achrom.get_RCs_vary_lcp(df1_f['peptide'].values, \
-                                                     df1_f['RT exp'].values)
-    df1_f['RT pred'] = df1_f['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
-    df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
-    _, _, r_value, std_value = aux.linear_regression(df1_f['RT pred'], df1_f['RT exp'])
-    print('R^2 = %f , std = %f' % (r_value**2, std_value))
-    df1['RT diff'] = df1['RT pred'] - df1['RT exp']
+    try:
+        print('Calibrating retention model...')
+        retention_coefficients = achrom.get_RCs_vary_lcp(df1_f['peptide'].values, \
+                                                        df1_f['RT exp'].values)
+        df1_f['RT pred'] = df1_f['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
+        df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
+        _, _, r_value, std_value = aux.linear_regression(df1_f['RT pred'], df1_f['RT exp'])
+        print('R^2 = %f , std = %f' % (r_value**2, std_value))
+        df1['RT diff'] = df1['RT pred'] - df1['RT exp']
+    except:
+        df1['RT pred'] = df1['RT exp']
+        df1['RT diff'] = df1['RT exp']
     return df1, all_decoys_2
 
 def get_features(dataframe):
@@ -267,10 +298,10 @@ def get_gbm_model(df):
     
     cv_result_lgb = lgb.cv(params, 
                         lgb_train, 
-                        num_boost_round=2000, 
-                        nfold=9, 
+                        num_boost_round=50, 
+                        nfold=5, 
                         stratified=True, 
-                        early_stopping_rounds=10, 
+                        early_stopping_rounds=5, 
                         verbose_eval=False, 
                         show_stdv=False, seed=SEED)
     
@@ -288,3 +319,13 @@ def calc_PEP(df):
     pep_min = df['PEP'].min()
     df['log_score'] = np.log10(df['PEP'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
     return df
+
+def calc_target_decoy_ratio(df):
+    df = df.sort_values(by='expect', ascending=False)
+    zvals = np.cumsum(df['decoy'].values) / (np.arange(1, df.shape[0] + 1, 1) - np.cumsum(df['decoy'].values))
+    print(zvals[:5], zvals[-5:])
+    zvals = zvals[~np.isnan(zvals)]
+    zvals = zvals[np.isfinite(zvals)]
+    zvals = zvals[zvals >= 0.5]
+    H1 = np.histogram(zvals, bins=np.arange(0.1, 1.1, 0.01))
+    return H1[1][np.argmax(H1[0])]
