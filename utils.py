@@ -1,9 +1,9 @@
 import pandas as pd
-from pyteomics import pepxml, achrom, auxiliary as aux, mass, fasta, mzid
+from pyteomics import pepxml, achrom, auxiliary as aux, mass, fasta, mzid, parser
 import numpy as np
 import random
 SEED = 42
-import lightgbm as lgb
+from catboost import CatBoostClassifier
 from sklearn.model_selection import train_test_split
 from os import path, mkdir
 from collections import Counter, defaultdict
@@ -84,7 +84,6 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, p
                 proteins_dict[prot]['PSMs'] += 1
     df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
     if path_to_fasta:
-        print(df_proteins.columns)
         df_proteins = process_fasta(df_proteins, path_to_fasta)
     df_proteins['length'] = df_proteins['sequence'].apply(len)
     df_proteins['sq'] = df_proteins.apply(calc_sq, axis=1)
@@ -156,7 +155,6 @@ def remove_column_hit_rank(df):
     if 'hit_rank' in df.columns:
         return df[df['hit_rank'] == 1]
     else:
-        print('no hit_rank column')
         return df
 
 def parse_mods(df_raw):
@@ -180,6 +178,26 @@ def parse_mods(df_raw):
             mods_counter[mod_name] += 1
     return mods_counter
 
+def parse_mods_msgf(df_raw):
+    mods_counter = Counter()
+    sequence, mods = df_raw['peptide'], df_raw['Modification']
+    if isinstance(mods, list):
+        for mod in mods:
+            mod_mass, aa_ind = mod['monoisotopicMassDelta'], mod['location']
+            if aa_ind == 0:
+                aa = 'N_term'
+                mod_mass = round(mod_mass, 3)
+            elif aa_ind == len(sequence) + 1:
+                aa = 'C_term'
+                mod_mass = round(mod_mass, 3)
+            else:
+                aa = sequence[aa_ind-1]
+                mod_mass = round(mod_mass, 3)
+            mod_name = 'mass shift %.3f at %s' % (mod_mass, aa)
+            mods_counter[mod_name] += 1
+    return mods_counter
+
+
 def add_mod_info(df_raw, mod):
     sequence, mods_counter = df_raw['peptide'], df_raw['mods_counter']
     mod_aa = mod.split(' at ')[1]
@@ -200,14 +218,16 @@ def prepare_mods(df):
 def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
     if infile_path.endswith('.pep.xml'):
         df1 = pepxml.DataFrame(infile_path)
+        ftype = 'pepxml'
     else:
         df1 = mzid.DataFrame(infile_path)
 
     if 'MS-GF:EValue' in df1.columns:
         #MSGF search engine
+        ftype = 'msgf'
         df1['peptide'] = df1['PeptideSequence']
+        df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=parser.expasy_rules['trypsin']))
         df1['assumed_charge'] = df1['chargeState']
-        df1['num_missed_cleavages'] = 0
         df1['spectrum'] = df1['spectrum title']
         df1['massdiff'] = (df1['experimentalMassToCharge'] - df1['calculatedMassToCharge']) * df1['assumed_charge']
         df1['calc_neutral_pep_mass'] = df1['calculatedMassToCharge'] * df1['chargeState'] - df1['chargeState'] * 1.00727649
@@ -231,11 +251,14 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
     df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix)
     df1, all_decoys_2 = split_decoys(df1, decoy_prefix=decoy_prefix)
     df1 = remove_column_hit_rank(df1)
-    try:
+    # try:
+    if ftype == 'pepxml':
         df1['mods_counter'] = df1.apply(parse_mods, axis=1)
-        df1 = prepare_mods(df1)
-    except:
-        pass
+    elif ftype == 'msgf':
+        df1['mods_counter'] = df1.apply(parse_mods_msgf, axis=1)
+    df1 = prepare_mods(df1)
+    # except:
+    #     pass
 
     df1_f = aux.filter(df1, fdr=0.01, key='expect', is_decoy='decoy', correction=1, remove_decoy=True, formula=1)
     print('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d' \
@@ -250,7 +273,7 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
         print('R^2 = %f , std = %f' % (r_value**2, std_value))
         df1['RT diff'] = df1['RT pred'] - df1['RT exp']
     except:
-        df1['RT pred'] = df1['RT exp']
+        df1['RT pred'] = df1_f['peptide'].apply(lambda x: calc_RT(x, achrom.RCs_krokhin_100A_tfa))
         df1['RT diff'] = df1['RT exp']
     return df1, all_decoys_2
 
@@ -261,7 +284,12 @@ def get_features(dataframe):
         if feature not in ['expect', 'hyperscore', 'calc_neutral_pep_mass', 'bscore', 'yscore', \
                             'massdiff', 'massdiff_ppm', 'nextscore', 'RT pred', 'RT diff', \
                             'sumI', 'RT exp', 'precursor_neutral_mass', 'massdiff_int', \
-                            'num_missed_cleavages', 'tot_num_ions', 'num_matched_ions', 'length']:
+                            'num_missed_cleavages', 'tot_num_ions', 'num_matched_ions', 'length', \
+                            'ScoreRatio', 'Energy', 'MS2IonCurrent', 'MeanErrorTop7', 'sqMeanErrorTop7', 'StdevErrorTop7', \
+                            'MS-GF:DeNovoScore', 'MS-GF:EValue', 'MS-GF:RawScore', 'MeanErrorAll', \
+                            'MeanRelErrorAll', 'MeanRelErrorTop7', 'NumMatchedMainIons', 'StdevErrorAll', \
+                            'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio', \
+                            'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio']:
             if not feature.startswith('mass shift'):
                 columns_to_remove.append(feature)
     feature_columns = feature_columns.drop(columns_to_remove)
@@ -273,49 +301,22 @@ def get_X_array(df, feature_columns):
 def get_Y_array(df):
     return df.loc[:, 'decoy1'].values
 
-def get_gbm_model(df):
+def get_cat_model(df):
     feature_columns = get_features(df)
-    x_train = get_X_array(df, feature_columns)
-    y_train = get_Y_array(df)
-    lgb_train = lgb.Dataset(x_train, y_train)
-
-    params = {
-        'task': 'train',
-        'boosting_type': 'gbdt',
-        'objective': 'regression',
-        'metric': {'l2', 'auc'},
-        'num_leaves': 10,
-        'learning_rate': 0.1,
-        'feature_fraction': 0.95,
-        'feature_fraction_seed': SEED,
-        'bagging_fraction': 0.95,
-        'bagging_seed': SEED,
-        'bagging_freq': 5,
-        'verbose': 0,
-        'min_data_in_bin': 1,
-        'min_data': 1
-    }
-    
-    cv_result_lgb = lgb.cv(params, 
-                        lgb_train, 
-                        num_boost_round=50, 
-                        nfold=5, 
-                        stratified=True, 
-                        early_stopping_rounds=5, 
-                        verbose_eval=False, 
-                        show_stdv=False, seed=SEED)
-    
-    num_boost_rounds_lgb = len(cv_result_lgb['auc-mean'])
-    print('num_boost_rounds_lgb=' + str(num_boost_rounds_lgb))
-    # train model
-    gbm = lgb.train(params, lgb_train, num_boost_round=num_boost_rounds_lgb)
-    return gbm
+    train, test = train_test_split(df, test_size = 0.3)
+    x_train = get_X_array(train, feature_columns)
+    y_train = get_Y_array(train)
+    x_test = get_X_array(test, feature_columns)
+    y_test = get_Y_array(test)
+    model = CatBoostClassifier(iterations=1000, learning_rate=0.05, depth=10, loss_function='Logloss', logging_level='Silent', random_seed=SEED)
+    model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
+    return model
 
 def calc_PEP(df):
     feature_columns = get_features(df)
-    gbm_model = get_gbm_model(df)
+    cat_model = get_cat_model(df)
     x_all = get_X_array(df, feature_columns)
-    df['PEP'] = gbm_model.predict(x_all, num_iteration=gbm_model.best_iteration)
+    df['PEP'] = cat_model.predict_proba(x_all)[:, 1]
     pep_min = df['PEP'].min()
     df['log_score'] = np.log10(df['PEP'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
     return df
