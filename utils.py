@@ -273,7 +273,7 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
         print('R^2 = %f , std = %f' % (r_value**2, std_value))
         df1['RT diff'] = df1['RT pred'] - df1['RT exp']
     except:
-        df1['RT pred'] = df1_f['peptide'].apply(lambda x: calc_RT(x, achrom.RCs_krokhin_100A_tfa))
+        df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, achrom.RCs_krokhin_100A_tfa))
         df1['RT diff'] = df1['RT exp']
     return df1, all_decoys_2
 
@@ -308,8 +308,13 @@ def get_cat_model(df):
     y_train = get_Y_array(train)
     x_test = get_X_array(test, feature_columns)
     y_test = get_Y_array(test)
-    model = CatBoostClassifier(iterations=1000, learning_rate=0.05, depth=10, loss_function='Logloss', logging_level='Silent', random_seed=SEED)
+    # model = CatBoostClassifier(iterations=1000, learning_rate=0.05, depth=10, loss_function='Logloss', logging_level='Silent', random_seed=SEED)
+    # model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
+
+    model = CatBoostClassifier(iterations=2500, learning_rate=0.005, depth=6, loss_function='Logloss', eval_metric='Logloss',
+                               od_type='Iter', od_wait=5, random_seed=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
+
     return model
 
 def calc_PEP(df):
