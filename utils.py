@@ -228,7 +228,7 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
         df1['peptide'] = df1['PeptideSequence']
         df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=parser.expasy_rules['trypsin']))
         df1['assumed_charge'] = df1['chargeState']
-        df1['spectrum'] = df1['spectrum title']
+        df1['spectrum'] = df1['spectrumID']
         df1['massdiff'] = (df1['experimentalMassToCharge'] - df1['calculatedMassToCharge']) * df1['assumed_charge']
         df1['calc_neutral_pep_mass'] = df1['calculatedMassToCharge'] * df1['chargeState'] - df1['chargeState'] * 1.00727649
         df1['protein'] = df1['protein description']
@@ -240,7 +240,11 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
     df1 = df1[df1['length'] >= 6]
     df1['spectrum'] = df1['spectrum'].apply(lambda x: x.split(' RTINS')[0])
     if 'retention_time_sec' not in df1.columns:
-        df1['RT exp'] = 0
+        if 'scan start time' in df1.columns:
+            df1['RT exp'] = df1['scan start time']
+            df1 = df1.drop(['scan start time', ], axis=1)
+        else:
+            df1['RT exp'] = 0
     else:
         df1['RT exp'] = df1['retention_time_sec'] / 60
         df1 = df1.drop(['retention_time_sec', ], axis=1)
