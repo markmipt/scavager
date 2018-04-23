@@ -222,6 +222,11 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
     else:
         df1 = mzid.DataFrame(infile_path)
 
+    if 'Morpheus Score' in df1.columns:
+        df1 = df1[df1['Morpheus Score'] != 0]
+        df1['expect'] = 1 / df1['Morpheus Score']
+        df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=parser.expasy_rules['trypsin']))
+        
     if 'MS-GF:EValue' in df1.columns:
         #MSGF search engine
         ftype = 'msgf'
