@@ -1,3 +1,4 @@
+from __future__ import division
 import pandas as pd
 from pyteomics import pepxml, achrom, auxiliary as aux, mass, fasta, mzid, parser
 import numpy as np

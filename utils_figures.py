@@ -1,3 +1,4 @@
+from __future__ import division
 from scipy.stats import scoreatpercentile
 from os import path
 import numpy as np
