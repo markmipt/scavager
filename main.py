@@ -30,8 +30,6 @@ def process_file(args):
     output_path_peptides = path.join(outfolder, outbasename + '_peptides.tsv')
     df1_peptides_f[~df1_peptides_f['decoy2']].to_csv(output_path_peptides, sep='\t', index=False)
 
-    plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']], outfolder, outbasename)
-
     if args['db']:
         path_to_fasta = path.abspath(args['db'])
     else:
@@ -39,11 +37,14 @@ def process_file(args):
     df_proteins = get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'], all_decoys_2=all_decoys_2, path_to_fasta=path_to_fasta)
     prot_ratio = 0.5
     df_proteins = df_proteins[df_proteins.apply(lambda x: not x['decoy'] or x['decoy2'], axis=1)]
-    df_proteins = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=1)
-    df_proteins = get_protein_groups(df_proteins)
+    df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=1)
+    df_proteins_f = get_protein_groups(df_proteins_f)
     output_path_proteins = path.join(outfolder, outbasename + '_proteins.tsv')
-    df_proteins.to_csv(output_path_proteins, sep='\t', index=False, columns = ['dbname','description','PSMs','peptides','NSAF','sq','score','length', 'all proteins', 'groupleader']) 
+    df_proteins_f.to_csv(output_path_proteins, sep='\t', index=False, columns = ['dbname','description','PSMs','peptides','NSAF','sq','score','length', 'all proteins', 'groupleader']) 
 
-    df_protein_groups = df_proteins[df_proteins['groupleader']]
+    df_protein_groups = df_proteins_f[df_proteins_f['groupleader']]
     output_path_protein_groups = path.join(outfolder, outbasename + '_protein_groups.tsv')
     df_protein_groups.to_csv(output_path_protein_groups, sep='\t', index=False, columns = ['dbname','description','PSMs','peptides','NSAF','sq','score','length', 'all proteins', 'groupleader']) 
+
+    plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']]\
+    , outfolder, outbasename, df_proteins=df_proteins, df_proteins_f=df_proteins_f[~df_proteins['decoy2']])

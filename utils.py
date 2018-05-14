@@ -14,6 +14,8 @@ def calc_NSAF(df):
     df['NSAF'] = df['PSMs'] / df['length']
     NSAF_sum = np.sum(df['NSAF'])
     df['NSAF'] = df['NSAF'] / NSAF_sum
+    if sum(pd.notna(df['NSAF'])):
+        df['LOG10_NSAF'] = np.log10(df['NSAF'])
     return df
 
 def keywithmaxval(d):

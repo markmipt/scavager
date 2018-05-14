@@ -48,6 +48,10 @@ def plot_basic_figures(df, df_f, fig, subplot_max_x, subplot_start, idtype):
     plot_hist_basic(lengths_array, lengths_array_valid, fig, subplot_max_x, subplot_i=subplot_start, \
                      xlabel='%s, peptide length' % (idtype, ), bin_size_one=True)
 
+def plot_protein_figures(df, df_f, fig, subplot_max_x, subplot_start):
+    plot_hist_descriptor(get_descriptor_array(df, df_f, dname='LOG10_NSAF'), fig, subplot_max_x, subplot_start, xlabel='LOG10(NSAF)')
+    plot_hist_descriptor(get_descriptor_array(df, df_f, dname='sq'), fig, subplot_max_x, subplot_start+1, xlabel='sequence coverage')
+
 def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel='# of identifications'):
     array_t, array_d, array_v = inarrays
     ax = fig.add_subplot(subplot_max_x, 3, subplot_i)
@@ -137,14 +141,18 @@ def get_fdbinsize(data_list):
     optimal_bin_size = 2. * iqr / len(data_list) ** (1. / 3.)
     return optimal_bin_size
 
-def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename):
+def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename, df_proteins, df_proteins_f):
     fig = plt.figure(figsize=(16, 12))
     dpi = fig.get_dpi()
     fig.set_size_inches(3000.0/float(dpi), 3000.0/float(dpi))
     subplot_max_x = 6
+    descriptor_start_index = 7
     plot_basic_figures(df, df_f, fig, subplot_max_x, 1, 'PSMs')
     plot_basic_figures(df_peptides, df_peptides_f, fig, subplot_max_x, 4, 'peptides')
-    plot_descriptors_figures(df, df_f, fig, subplot_max_x, 7)
+    if 'LOG10_NSAF' in df_proteins.columns:
+        plot_protein_figures(df_proteins, df_proteins_f, fig, subplot_max_x, 7)
+        descriptor_start_index += 2
+    plot_descriptors_figures(df, df_f, fig, subplot_max_x, descriptor_start_index)
     plt.grid(color='#EEEEEE')
     plt.tight_layout()
     plt.savefig(path.join(outfolder, outbasename) + '.png')
