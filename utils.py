@@ -204,7 +204,7 @@ def add_mod_info(df_raw, mod):
     if 'term' not in mod_aa and mod_aa not in sequence:
         return -1
     else:
-        return mods_counter.get(mod, 0)
+        return mods_counter.get(mod, 0) >= 1
 
 def prepare_mods(df):
     all_mods = set()
