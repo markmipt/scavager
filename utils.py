@@ -10,6 +10,51 @@ from collections import Counter, defaultdict
 import warnings
 warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
 
+def convert_tandem_cleave_rule_to_regexp(cleavage_rule):
+
+    def get_sense(c_term_rule, n_term_rule):
+        if '{' in c_term_rule:
+            return 'N'
+        elif '{' in n_term_rule:
+            return 'C'
+        else:
+            if len(c_term_rule) <= len(n_term_rule):
+                return 'C'
+            else:
+                return 'N'
+
+    def get_cut(cut, no_cut):
+        aminoacids = set(parser.std_amino_acids)
+        cut = ''.join(aminoacids & set(cut))
+        if '{' in no_cut:
+            no_cut = ''.join(aminoacids & set(no_cut))
+            return cut, no_cut
+        else:
+            no_cut = ''.join(set(parser.std_amino_acids) - set(no_cut))
+            return cut, no_cut
+
+    out_rules = []
+    for protease in cleavage_rule.split(','):
+        protease = protease.replace('X', ''.join(parser.std_amino_acids))
+        c_term_rule, n_term_rule = protease.split('|')
+        sense = get_sense(c_term_rule, n_term_rule)
+        if sense == 'C':
+            cut, no_cut = get_cut(c_term_rule, n_term_rule)
+        else:
+            cut, no_cut = get_cut(n_term_rule, c_term_rule)
+
+        if no_cut:
+            if sense == 'C':
+                out_rules.append('([%s](?=[^%s]))' % (cut, no_cut))
+            else:
+                out_rules.append('([^%s](?=[%s]))' % (no_cut, cut))
+        else:
+            if sense == 'C':
+                out_rules.append('([%s])' % (cut, ))
+            else:
+                out_rules.append('(?=[%s])' % (cut, ))
+    return '|'.join(out_rules)
+
 def calc_NSAF(df):
     df['NSAF'] = df['PSMs'] / df['length']
     NSAF_sum = np.sum(df['NSAF'])
@@ -216,7 +261,9 @@ def prepare_mods(df):
         df[mod] = df.apply(add_mod_info, axis=1, mod=mod)
     return df
 
-def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
+def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', cleavage_rule=False):
+    if not cleavage_rule:
+        cleavage_rule = parser.expasy_rules['trypsin']
     if infile_path.endswith('.pep.xml'):
         df1 = pepxml.DataFrame(infile_path)
         ftype = 'pepxml'
@@ -226,13 +273,13 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_'):
     if 'Morpheus Score' in df1.columns:
         df1 = df1[df1['Morpheus Score'] != 0]
         df1['expect'] = 1 / df1['Morpheus Score']
-        df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=parser.expasy_rules['trypsin']))
+        df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=cleavage_rule))
         
     if 'MS-GF:EValue' in df1.columns:
         #MSGF search engine
         ftype = 'msgf'
         df1['peptide'] = df1['PeptideSequence']
-        df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=parser.expasy_rules['trypsin']))
+        df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=cleavage_rule))
         df1['assumed_charge'] = df1['chargeState']
         df1['spectrum'] = df1['spectrumID']
         df1['massdiff'] = (df1['experimentalMassToCharge'] - df1['calculatedMassToCharge']) * df1['assumed_charge']

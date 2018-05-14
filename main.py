@@ -1,4 +1,4 @@
-from utils import prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups, calc_target_decoy_ratio
+from utils import prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups, calc_target_decoy_ratio, convert_tandem_cleave_rule_to_regexp
 from utils_figures import plot_outfigures
 from pyteomics import auxiliary as aux
 from os import path
@@ -12,7 +12,11 @@ def process_file(args):
     outbasename = get_output_basename(fname)
     outfdr = args['fdr'] / 100
     print('Loading file %s...' % (path.basename(fname), ))
-    df1, all_decoys_2 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'])
+    if args['e']:
+        cleavage_rule = convert_tandem_cleave_rule_to_regexp(args['e'])
+    else:
+        cleavage_rule = False
+    df1, all_decoys_2 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'], cleavage_rule=cleavage_rule)
     df1 = calc_PEP(df1)
     pep_ratio_orig = calc_target_decoy_ratio(df1)
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy']) * pep_ratio_orig
