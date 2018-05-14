@@ -66,7 +66,11 @@ def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel
     ax.step(cbins, H1, where='post', color=redcolor, alpha=0.8)
     plt.ylabel(ylabel)
     plt.xlabel(xlabel)
-    if width == 1.0:
+    if 'mass shift' in xlabel:
+        plt.xlim(-1.5, 1.5)
+        ax.set_xticks([-1, 0, 1])
+        ax.set_xticklabels(['NA', 'unmodified', 'modified'])
+    elif width == 1.0:
         ax.set_xticks(np.arange(int(cbins[0]), cbins[-1], 1))
         fig.canvas.draw()
 
