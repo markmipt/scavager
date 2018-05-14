@@ -60,7 +60,6 @@ def process_fasta(df, path_to_fasta):
     return df
 
 def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, path_to_fasta=False):
-    print(path_to_fasta)
     proteins_dict = dict()
     for proteins, protein_descriptions, peptide, pep in df1_peptides_f[['protein', 'protein_descr', 'peptide', 'PEP']].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):

@@ -41,10 +41,10 @@ def process_file(args):
     df_proteins_f = get_protein_groups(df_proteins_f)
     output_path_proteins = path.join(outfolder, outbasename + '_proteins.tsv')
     df_proteins_f.to_csv(output_path_proteins, sep='\t', index=False, columns = ['dbname','description','PSMs','peptides','NSAF','sq','score','length', 'all proteins', 'groupleader']) 
-
+    
     df_protein_groups = df_proteins_f[df_proteins_f['groupleader']]
     output_path_protein_groups = path.join(outfolder, outbasename + '_protein_groups.tsv')
     df_protein_groups.to_csv(output_path_protein_groups, sep='\t', index=False, columns = ['dbname','description','PSMs','peptides','NSAF','sq','score','length', 'all proteins', 'groupleader']) 
 
     plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']]\
-    , outfolder, outbasename, df_proteins=df_proteins, df_proteins_f=df_proteins_f[~df_proteins['decoy2']])
+    , outfolder, outbasename, df_proteins=df_proteins, df_proteins_f=df_proteins_f[~df_proteins_f['decoy2']])
