@@ -18,7 +18,9 @@ png figure with PSM, peptide and protein features distributions
 
 Installation
 -----
-    pip install mpscore2
+In setup.py file directory run:
+
+    pip install .
 
 
 Usage
