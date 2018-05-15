@@ -1,10 +1,11 @@
 from __future__ import division
 import argparse
 import main
+import pkg_resources
 
 def run():
     parser = argparse.ArgumentParser(
-        description='post-search analysis of peptides and proteins',
+        description='postsearch analysis of peptides and proteins',
         epilog='''
 
     Example usage
@@ -25,8 +26,8 @@ def run():
     "[RK]|{P}" means cleave after R and K, but not before P;\
     "[X]|[D]" means cleave before D;\
     "[RK]|{P},[M]|[X]" means mix of trypsin and cnbr', default='[RK]|{P}')
+    parser.add_argument('-version', action='version', version='%s' % (pkg_resources.require("mpscore2")[0], ))
     args = vars(parser.parse_args())
-
     main.process_file(args)
     print('The search is finished.')
 
