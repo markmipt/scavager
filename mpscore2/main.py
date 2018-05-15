@@ -17,7 +17,11 @@ def process_file(args):
         cleavage_rule = convert_tandem_cleave_rule_to_regexp(args['e'])
     else:
         cleavage_rule = False
-    df1, all_decoys_2 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'], cleavage_rule=cleavage_rule)
+    if args['allowed_peptides']:
+        allowed_peptides = set([pseq.strip().split()[0] for pseq in open(args['allowed_peptides'], 'r')])
+    else:
+        allowed_peptides = False
+    df1, all_decoys_2 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'], cleavage_rule=cleavage_rule, allowed_peptides=allowed_peptides)
     df1 = calc_PEP(df1)
     pep_ratio_orig = calc_target_decoy_ratio(df1)
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy']) * pep_ratio_orig

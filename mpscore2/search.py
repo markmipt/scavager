@@ -26,6 +26,9 @@ def run():
     "[RK]|{P}" means cleave after R and K, but not before P;\
     "[X]|[D]" means cleave before D;\
     "[RK]|{P},[M]|[X]" means mix of trypsin and cnbr', default='[RK]|{P}')
+    parser.add_argument('-allowed_peptides', help='Path to file with peptides considered in postsearch analysis.\
+    Sequences must be separated by new line. For example, it can be variant peptides and its decoys in case \
+    of proteogenomics searches for group-specific FDR calculation', default='')
     parser.add_argument('-version', action='version', version='%s' % (pkg_resources.require("mpscore2")[0], ))
     args = vars(parser.parse_args())
     main.process_file(args)
