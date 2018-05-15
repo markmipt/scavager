@@ -27,7 +27,7 @@ def process_file(args):
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy']) * pep_ratio_orig
 
     output_path_psms_full = path.join(outfolder, outbasename + '_PSMs_full.tsv')
-    df1.to_csv(output_path_psms_full, sep='\t', index=False, columns=get_columns_to_output(out_type='psm'))
+    df1.to_csv(output_path_psms_full, sep='\t', index=False, columns=get_columns_to_output(out_type='psm_full'))
     df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
     output_path_psms = path.join(outfolder, outbasename + '_PSMs.tsv')
     df1_f2[~df1_f2['decoy2']].to_csv(output_path_psms, sep='\t', index=False, columns=get_columns_to_output(out_type='psm'))

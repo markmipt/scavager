@@ -398,7 +398,10 @@ def calc_target_decoy_ratio(df):
     return H1[1][np.argmax(H1[0])]
 
 def get_columns_to_output(out_type):
-    if out_type == 'psm':
+    if out_type == 'psm_full':
+        return ['peptide', 'length', 'spectrum', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2']
+    elif out_type == 'psm':
         return ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy']
     elif out_type == 'peptide':
