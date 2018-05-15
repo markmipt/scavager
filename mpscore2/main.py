@@ -55,3 +55,9 @@ def process_file(args):
 
     plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']]\
     , outfolder, outbasename, df_proteins=df_proteins, df_proteins_f=df_proteins_f[~df_proteins_f['decoy2']])
+
+    print('\nFinal results at %s%% FDR level:' % (args['fdr'], ))
+    print('Identified PSMs: %s' % (df1_f2[~df1_f2['decoy2']].shape[0], ))
+    print('Identified peptides: %s'% (df1_peptides_f[~df1_peptides_f['decoy2']].shape[0], ))
+    print('Identified proteins: %s'% (df_proteins_f.shape[0], ))
+    print('Identified protein groups: %s\n'% (df_protein_groups.shape[0], ))
