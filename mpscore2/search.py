@@ -4,12 +4,12 @@ import main
 
 def run():
     parser = argparse.ArgumentParser(
-        description='Search proteins using LC-MS spectra',
+        description='post-search analysis of peptides and proteins',
         epilog='''
 
     Example usage
     -------------
-    $ search.py input.pep.xml
+    $ mpscore2 input.pep.xml -prefix DECOY_ -fdr 1.0
     -------------
     ''',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
