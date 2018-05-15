@@ -325,7 +325,9 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', cleavage_rule=
              % (df1_f[~df1_f['decoy']].shape[0]))
     try:
         print('Calibrating retention model...')
-        retention_coefficients = achrom.get_RCs_vary_lcp(df1_f['peptide'].values, \
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            retention_coefficients = achrom.get_RCs_vary_lcp(df1_f['peptide'].values, \
                                                         df1_f['RT exp'].values)
         df1_f['RT pred'] = df1_f['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
         df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
