@@ -396,3 +396,18 @@ def calc_target_decoy_ratio(df):
     zvals = zvals[zvals >= 0.5]
     H1 = np.histogram(zvals, bins=np.arange(0.1, 1.1, 0.01))
     return H1[1][np.argmax(H1[0])]
+
+def get_columns_to_output(out_type):
+    if out_type == 'psm':
+        return ['peptide', 'length', 'spectrum', 'q', 'PEP', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy']
+    elif out_type == 'peptide':
+        return ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'PEP', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy']
+    elif out_type == 'protein':
+        return ['dbname','description','PSMs','peptides','NSAF','sq','score','length', 'all proteins', 'groupleader']
+
+def calc_psms(df):
+    peptides = Counter(df['peptide'])
+    df['#PSMs'] = df['peptide'].apply(lambda x: peptides.get(x))
+    return df
