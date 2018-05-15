@@ -28,13 +28,13 @@ def process_file(args):
 
     output_path_psms_full = path.join(outfolder, outbasename + '_PSMs_full.tsv')
     df1.to_csv(output_path_psms_full, sep='\t', index=False, columns=get_columns_to_output(out_type='psm'))
-    df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='PEP', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+    df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
     output_path_psms = path.join(outfolder, outbasename + '_PSMs.tsv')
     df1_f2[~df1_f2['decoy2']].to_csv(output_path_psms, sep='\t', index=False, columns=get_columns_to_output(out_type='psm'))
 
     df1 = calc_psms(df1)
-    df1_peptides = df1.sort_values('PEP', ascending=True).drop_duplicates(['peptide'])
-    df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr, key='PEP', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+    df1_peptides = df1.sort_values('ML score', ascending=True).drop_duplicates(['peptide'])
+    df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
     output_path_peptides = path.join(outfolder, outbasename + '_peptides.tsv')
     df1_peptides_f[~df1_peptides_f['decoy2']].to_csv(output_path_peptides, sep='\t', index=False, columns=get_columns_to_output(out_type='peptide'))
 

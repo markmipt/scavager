@@ -107,7 +107,7 @@ def process_fasta(df, path_to_fasta):
 
 def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, path_to_fasta=False):
     proteins_dict = dict()
-    for proteins, protein_descriptions, peptide, pep in df1_peptides_f[['protein', 'protein_descr', 'peptide', 'PEP']].values:
+    for proteins, protein_descriptions, peptide, pep in df1_peptides_f[['protein', 'protein_descr', 'peptide', 'ML score']].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):
             if prot not in proteins_dict:
                 proteins_dict[prot] = dict()
@@ -383,9 +383,9 @@ def calc_PEP(df):
     feature_columns = get_features(df)
     cat_model = get_cat_model(df)
     x_all = get_X_array(df, feature_columns)
-    df['PEP'] = cat_model.predict_proba(x_all)[:, 1]
-    pep_min = df['PEP'].min()
-    df['log_score'] = np.log10(df['PEP'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
+    df['ML score'] = cat_model.predict_proba(x_all)[:, 1]
+    pep_min = df['ML score'].min()
+    df['log_score'] = np.log10(df['ML score'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
     return df
 
 def calc_target_decoy_ratio(df):
@@ -399,10 +399,10 @@ def calc_target_decoy_ratio(df):
 
 def get_columns_to_output(out_type):
     if out_type == 'psm':
-        return ['peptide', 'length', 'spectrum', 'q', 'PEP', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+        return ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy']
     elif out_type == 'peptide':
-        return ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'PEP', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+        return ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy']
     elif out_type == 'protein':
         return ['dbname','description','PSMs','peptides','NSAF','sq','score','length', 'all proteins', 'groupleader']

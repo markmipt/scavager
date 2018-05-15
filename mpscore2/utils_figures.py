@@ -95,7 +95,7 @@ def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
         if df_col.startswith('mass shift'):
             plot_hist_descriptor(get_descriptor_array(df, df_f, dname=df_col), fig, subplot_max_x, subplot_start, xlabel=df_col)
             subplot_start += 1
-    plot_hist_descriptor(get_descriptor_array(df, df_f, dname='log_score'), fig, subplot_max_x, subplot_start, xlabel='ML score')
+    plot_hist_descriptor(get_descriptor_array(df, df_f, dname='log_score'), fig, subplot_max_x, subplot_start, xlabel='LOG10(ML score)')
     subplot_start += 1
   
 def get_bins(inarrays, bin_size_one=False):
