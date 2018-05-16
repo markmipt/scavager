@@ -1,6 +1,6 @@
 from __future__ import division
 import argparse
-import main
+from . import main
 import pkg_resources
 
 def run():

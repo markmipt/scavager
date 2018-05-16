@@ -1,6 +1,6 @@
 from __future__ import division
-from utils import get_columns_to_output, calc_psms, prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups, calc_target_decoy_ratio, convert_tandem_cleave_rule_to_regexp
-from utils_figures import plot_outfigures
+from .utils import get_columns_to_output, calc_psms, prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups, calc_target_decoy_ratio, convert_tandem_cleave_rule_to_regexp
+from .utils_figures import plot_outfigures
 from pyteomics import auxiliary as aux
 from os import path
 from collections import defaultdict
