@@ -79,6 +79,25 @@ def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel
         ax.set_xticks(np.arange(int(cbins[0]), cbins[-1], 1))
         fig.canvas.draw()
 
+def calc_max_x_value(df, df_proteins):
+    cnt = 6 # number of basic figures 
+    peptide_columns = set(df.columns)
+    features_list = ['massdiff_ppm', 'RT diff', 'num_missed_cleavages', 'assumed_charge', 'log_score']
+    for feature in features_list:
+        if feature in peptide_columns:
+            cnt += 1
+    for feature in peptide_columns:
+        if feature.startswith('mass shift'):
+            cnt += 1
+    if len(set(df['massdiff_int'])) > 1:
+        cnt += 1
+    if 'LOG10_NSAF' in df_proteins.columns:
+        cnt += 2 # add for NSAF and sequence coverage
+    return cnt // 3 + (1 if (cnt % 3) else 0)
+
+    
+
+
 def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='massdiff_ppm'), fig, subplot_max_x, subplot_start, xlabel='precursor mass difference, ppm')
     subplot_start += 1
@@ -146,7 +165,7 @@ def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename
     fig = plt.figure(figsize=(16, 12))
     dpi = fig.get_dpi()
     fig.set_size_inches(3000.0/float(dpi), 3000.0/float(dpi))
-    subplot_max_x = 6
+    subplot_max_x = calc_max_x_value(df, df_proteins)
     descriptor_start_index = 7
     plot_basic_figures(df, df_f, fig, subplot_max_x, 1, 'PSMs')
     plot_basic_figures(df_peptides, df_peptides_f, fig, subplot_max_x, 4, 'peptides')
