@@ -369,6 +369,7 @@ def get_Y_array(df):
     return df.loc[:, 'decoy1'].values
 
 def get_cat_model(df):
+    print('Starting machine learning...')
     feature_columns = get_features(df)
     train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
     x_train = get_X_array(train, feature_columns)
@@ -378,9 +379,10 @@ def get_cat_model(df):
     # model = CatBoostClassifier(iterations=1000, learning_rate=0.05, depth=10, loss_function='Logloss', logging_level='Silent', random_seed=SEED)
     # model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
 
-    model = CatBoostClassifier(iterations=2500, learning_rate=0.005, depth=6, loss_function='Logloss', eval_metric='Logloss',
+    model = CatBoostClassifier(iterations=2500, learning_rate=0.005, depth=10, loss_function='Logloss', eval_metric='Logloss',
                                od_type='Iter', od_wait=5, random_seed=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
+    print('Machine learning is finished...')
 
     return model
 
