@@ -370,7 +370,7 @@ def get_Y_array(df):
 
 def get_cat_model(df):
     feature_columns = get_features(df)
-    train, test = train_test_split(df, test_size = 0.3)
+    train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
     x_train = get_X_array(train, feature_columns)
     y_train = get_Y_array(train)
     x_test = get_X_array(test, feature_columns)
