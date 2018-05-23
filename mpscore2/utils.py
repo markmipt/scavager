@@ -126,16 +126,19 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, p
             proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
 
     for proteins in df1_f2[['protein']].values:
+        # print(proteins)
         for prot in proteins[0]:
             if prot in proteins_dict:
                 proteins_dict[prot]['PSMs'] += 1
     df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
+    # print(df_proteins[df_proteins['PSMs'] == 0])
     if path_to_fasta:
         df_proteins = process_fasta(df_proteins, path_to_fasta)
     df_proteins['length'] = df_proteins['sequence'].apply(len)
     df_proteins['sq'] = df_proteins.apply(calc_sq, axis=1)
-    df_proteins = calc_NSAF(df_proteins)
     df_proteins['peptides'] = df_proteins['peptides set'].apply(len)
+    df_proteins['PSMs'] = df_proteins.apply(lambda x: max(x['PSMs'], x['peptides']), axis=1)#df_proteins.loc[:, ['PSMs', 'peptides']].max(axis=1)
+    df_proteins = calc_NSAF(df_proteins)
     df_proteins['score'] = df_proteins['score'].apply(lambda x: np.prod(list(x.values())))
     return df_proteins
 
@@ -334,7 +337,9 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', cleavage_rule=
         _, _, r_value, std_value = aux.linear_regression(df1_f['RT pred'], df1_f['RT exp'])
         print('R^2 = %f , std = %f' % (r_value**2, std_value))
         df1['RT diff'] = df1['RT pred'] - df1['RT exp']
+        print('Retention model calibrated successfully')
     except:
+        print('Probably retention times are missed in input file')
         df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, achrom.RCs_krokhin_100A_tfa))
         df1['RT diff'] = df1['RT exp']
     return df1, all_decoys_2
