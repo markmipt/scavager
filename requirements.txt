@@ -1,7 +1,7 @@
 numpy
 scipy
 pandas
-pyteomics
+pyteomics>=3.5
 lxml
 catboost
 sklearn
