@@ -265,7 +265,7 @@ def prepare_mods(df):
         df[mod] = df.apply(add_mod_info, axis=1, mod=mod)
     return df
 
-def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', cleavage_rule=False, allowed_peptides=False):
+def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', cleavage_rule=False, allowed_peptides=False, fdr=0.01):
     if not cleavage_rule:
         cleavage_rule = parser.expasy_rules['trypsin']
     if infile_path.endswith('.pep.xml'):
@@ -323,7 +323,7 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', cleavage_rule=
     # except:
     #     pass
 
-    df1_f = aux.filter(df1, fdr=0.01, key='expect', is_decoy='decoy', correction=1, remove_decoy=True, formula=1)
+    df1_f = aux.filter(df1, fdr=fdr, key='expect', is_decoy='decoy', correction=1, remove_decoy=True, formula=1)
     print('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d' \
              % (df1_f[~df1_f['decoy']].shape[0]))
     try:
