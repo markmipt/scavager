@@ -9,12 +9,19 @@ Identipy, X!Tandem, Comet, MSFragger, msgf+, Morpheus.
 For msgf+ and morpheus search engines desirable to provide cleavage rule used in search (These search engines do not report number of missed cleavages for peptide).
 
 The output of mpscore2 contains:
-tab-separated table with unfiltered peptide-spectrum matches (ends with _PSMs_full.tsv)
-tab-separated table with identified peptide-spectrum matches at 1% PSM FDR (ends with _PSMs.tsv)
-tab-separated table with identified peptides at 1% peptide FDR (ends with _peptides.tsv)
-tab-separated table with identified proteins without grouping at 1% protein FDR (ends with _proteins.tsv)
-tab-separated table with identified protein groups at 1% protein FDR (ends with _protein_groups.tsv)
-png figure with PSM, peptide and protein features distributions
+
+
+    tab-separated table with unfiltered peptide-spectrum matches (ends with _PSMs_full.tsv)
+
+    tab-separated table with identified peptide-spectrum matches at 1% PSM FDR (ends with _PSMs.tsv)
+
+    tab-separated table with identified peptides at 1% peptide FDR (ends with _peptides.tsv)
+
+    tab-separated table with identified proteins without grouping at 1% protein FDR (ends with _proteins.tsv)
+
+    tab-separated table with identified protein groups at 1% protein FDR (ends with _protein_groups.tsv)
+
+    png figure with PSM, peptide and protein features distributions
 
 Installation
 -----
