@@ -6,7 +6,7 @@ Identipy, X!Tandem, Comet, MSFragger, msgf+, Morpheus.
 
 .fasta file is required for calculation NSAF (label-free quantitation index) and protein sequence coverage.
 
-For msgf+ and morpheus search engines desirable to provide cleavage rule used in search (These search engines do not report number of missed cleavages for peptide).
+For msgf+ and morpheus search engines it is desirable to provide cleavage rules used in search (These search engines do not report number of missed cleavages for peptides).
 
 The output of mpscore2 contains:
 
