@@ -10,7 +10,7 @@ def run():
 
     Example usage
     -------------
-    $ mpscore2 input.pep.xml -prefix DECOY_ -fdr 1.0
+    $ scavager input.pep.xml -prefix DECOY_ -fdr 1.0
     -------------
     ''',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -29,7 +29,7 @@ def run():
     parser.add_argument('-allowed_peptides', help='Path to file with peptides considered in postsearch analysis.\
     Sequences must be separated by new line. For example, it can be variant peptides and its decoys in case \
     of proteogenomics searches for group-specific FDR calculation', default='')
-    parser.add_argument('-version', action='version', version='%s' % (pkg_resources.require("mpscore2")[0], ))
+    parser.add_argument('-version', action='version', version='%s' % (pkg_resources.require("scavager")[0], ))
     args = vars(parser.parse_args())
     main.process_file(args)
     print('The search is finished.')
