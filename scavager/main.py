@@ -1,5 +1,5 @@
 from __future__ import division
-from .utils import get_columns_to_output, calc_psms, prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups, calc_target_decoy_ratio, convert_tandem_cleave_rule_to_regexp
+from .utils import NoDecoyError, get_columns_to_output, calc_psms, prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups, calc_target_decoy_ratio, convert_tandem_cleave_rule_to_regexp
 from .utils_figures import plot_outfigures
 from pyteomics import auxiliary as aux
 from os import path
@@ -21,7 +21,11 @@ def process_file(args):
         allowed_peptides = set([pseq.strip().split()[0] for pseq in open(args['allowed_peptides'], 'r')])
     else:
         allowed_peptides = False
-    df1, all_decoys_2 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'], cleavage_rule=cleavage_rule, allowed_peptides=allowed_peptides, fdr=outfdr)
+    try:
+        df1, all_decoys_2 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'], cleavage_rule=cleavage_rule, allowed_peptides=allowed_peptides, fdr=outfdr)
+    except NoDecoyError:
+        print('\nNo decoys were found. Please check decoy_prefix parameter or your search output\n')
+        return
     df1 = calc_PEP(df1)
     pep_ratio_orig = calc_target_decoy_ratio(df1)
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy']) * pep_ratio_orig
@@ -63,6 +67,7 @@ def process_file(args):
         print('Identified peptides: %s'% (df1_peptides_f[~df1_peptides_f['decoy2']].shape[0], ))
         print('Identified proteins: %s'% (df_proteins_f.shape[0], ))
         print('Identified protein groups: %s\n'% (df_protein_groups.shape[0], ))
+        print('The search is finished.')
 
     else:
         print('\nPSMs cannot be filtered at %s%% FDR. Please increase allowed FDR\n' % (args['fdr'], ))

@@ -11,6 +11,9 @@ from collections import Counter, defaultdict
 import warnings
 warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
 
+class NoDecoyError(ValueError):
+    pass
+
 def convert_tandem_cleave_rule_to_regexp(cleavage_rule):
 
     def get_sense(c_term_rule, n_term_rule):
@@ -312,6 +315,8 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', cleavage_rule=
     df1['massdiff_ppm'] = 1e6 * (df1['massdiff'] - df1['massdiff_int'] * 1.003354)/ df1['calc_neutral_pep_mass']
 
     df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix)
+    if not np.sum(df1['decoy']):
+        raise NoDecoyError()
     df1, all_decoys_2 = split_decoys(df1, decoy_prefix=decoy_prefix)
     df1 = remove_column_hit_rank(df1)
     # try:

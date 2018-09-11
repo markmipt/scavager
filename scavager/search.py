@@ -1,6 +1,6 @@
 from __future__ import division
 import argparse
-from . import main
+from . import main, utils
 import pkg_resources
 
 def run():
@@ -32,7 +32,6 @@ def run():
     parser.add_argument('-version', action='version', version='%s' % (pkg_resources.require("scavager")[0], ))
     args = vars(parser.parse_args())
     main.process_file(args)
-    print('The search is finished.')
 
 
 
