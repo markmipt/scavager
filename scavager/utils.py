@@ -400,15 +400,6 @@ def calc_PEP(df):
     df['log_score'] = np.log10(df['ML score'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
     return df
 
-def calc_target_decoy_ratio(df):
-    df = df.sort_values(by='expect', ascending=False)
-    zvals = np.cumsum(df['decoy'].values) / (np.arange(1, df.shape[0] + 1, 1) - np.cumsum(df['decoy'].values))
-    zvals = zvals[~np.isnan(zvals)]
-    zvals = zvals[np.isfinite(zvals)]
-    zvals = zvals[zvals >= 0.5]
-    H1 = np.histogram(zvals, bins=np.arange(0.1, 1.1, 0.01))
-    return H1[1][np.argmax(H1[0])]
-
 def get_columns_to_output(out_type):
     if out_type == 'psm_full':
         return ['peptide', 'length', 'spectrum', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',

@@ -1,5 +1,5 @@
 from __future__ import division
-from .utils import NoDecoyError, get_columns_to_output, calc_psms, prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups, calc_target_decoy_ratio, convert_tandem_cleave_rule_to_regexp
+from .utils import NoDecoyError, get_columns_to_output, calc_psms, prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups, convert_tandem_cleave_rule_to_regexp
 from .utils_figures import plot_outfigures
 from pyteomics import auxiliary as aux
 from os import path
@@ -10,7 +10,7 @@ import numpy as np
 def process_file(args):
     fname = args['file']
     outfolder = get_output_folder(args['o'], fname)
-    outbasename = get_output_basename(fname)
+    outbasename = get_output_basename(fname)    
     outfdr = args['fdr'] / 100
     print('Loading file %s...' % (path.basename(fname), ))
     if args['e']:
@@ -27,8 +27,7 @@ def process_file(args):
         print('\nNo decoys were found. Please check decoy_prefix parameter or your search output\n')
         return
     df1 = calc_PEP(df1)
-    pep_ratio_orig = calc_target_decoy_ratio(df1)
-    pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy']) * pep_ratio_orig
+    pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
 
     output_path_psms_full = path.join(outfolder, outbasename + '_PSMs_full.tsv')
     df1.to_csv(output_path_psms_full, sep='\t', index=False, columns=get_columns_to_output(out_type='psm_full'))
