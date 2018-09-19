@@ -108,7 +108,7 @@ def process_fasta(df, path_to_fasta):
     df['sequence'] = df['dbname'].apply(lambda x: protsS.get(x, ''))
     return df
 
-def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, path_to_fasta=False):
+def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
     proteins_dict = dict()
     for proteins, protein_descriptions, peptide, pep in df1_peptides_f[['protein', 'protein_descr', 'peptide', 'ML score']].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):
@@ -123,7 +123,10 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, p
                 proteins_dict[prot]['sq'] = 0
                 proteins_dict[prot]['score'] = dict()
                 proteins_dict[prot]['q-value'] = 1.0
-                proteins_dict[prot]['decoy'] = prot.startswith(decoy_prefix)
+                if not decoy_infix:
+                    proteins_dict[prot]['decoy'] = prot.startswith(decoy_prefix)
+                else:
+                    proteins_dict[prot]['decoy'] = decoy_infix in prot
                 proteins_dict[prot]['decoy2'] = prot in all_decoys_2
             proteins_dict[prot]['peptides set'].add(peptide)
             proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
@@ -185,17 +188,21 @@ def calc_RT(seq, RC):
     except:
         return 0
     
-def is_decoy(proteins, decoy_prefix):
-    return all(z.startswith(decoy_prefix) for z in proteins)
+def is_decoy(proteins, decoy_prefix, decoy_infix=False):
+    if not decoy_infix:
+        return all(z.startswith(decoy_prefix) for z in proteins)
+    else:
+        return all(decoy_infix in z for z in proteins)
+
 
 def is_decoy_2(proteins, decoy_set):
     return all(z in decoy_set for z in proteins)
 
-def split_decoys(df, decoy_prefix):
+def split_decoys(df, decoy_prefix, decoy_infix=False):
     all_decoys = set()
     for proteins in df[['protein']].values:
         for dbname in proteins[0]:
-            if dbname.startswith(decoy_prefix):
+            if (not decoy_infix and dbname.startswith(decoy_prefix)) or (decoy_infix and decoy_infix in dbname):
                 all_decoys.add(dbname)
     all_decoys = sorted(list(all_decoys)) # sort is done for working of random SEED
     random.seed(SEED)
@@ -268,7 +275,7 @@ def prepare_mods(df):
         df[mod] = df.apply(add_mod_info, axis=1, mod=mod)
     return df
 
-def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', cleavage_rule=False, allowed_peptides=False, fdr=0.01):
+def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False, allowed_peptides=False, fdr=0.01):
     if not cleavage_rule:
         cleavage_rule = parser.expasy_rules['trypsin']
     if infile_path.endswith('.pep.xml'):
@@ -314,10 +321,10 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', cleavage_rule=
     df1['massdiff_int'] = df1['massdiff'].apply(lambda x: int(round(x, 0)))
     df1['massdiff_ppm'] = 1e6 * (df1['massdiff'] - df1['massdiff_int'] * 1.003354)/ df1['calc_neutral_pep_mass']
 
-    df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix)
+    df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)
     if not np.sum(df1['decoy']):
         raise NoDecoyError()
-    df1, all_decoys_2 = split_decoys(df1, decoy_prefix=decoy_prefix)
+    df1, all_decoys_2 = split_decoys(df1, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)
     df1 = remove_column_hit_rank(df1)
     # try:
     if ftype == 'pepxml':

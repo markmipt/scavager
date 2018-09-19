@@ -22,9 +22,9 @@ def process_file(args):
     else:
         allowed_peptides = False
     try:
-        df1, all_decoys_2 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'], cleavage_rule=cleavage_rule, allowed_peptides=allowed_peptides, fdr=outfdr)
+        df1, all_decoys_2 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'], decoy_infix=args['infix'], cleavage_rule=cleavage_rule, allowed_peptides=allowed_peptides, fdr=outfdr)
     except NoDecoyError:
-        print('\nNo decoys were found. Please check decoy_prefix parameter or your search output\n')
+        print('\nNo decoys were found. Please check decoy_prefix/infix parameter or your search output\n')
         return
     df1 = calc_PEP(df1)
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
@@ -46,7 +46,7 @@ def process_file(args):
             path_to_fasta = path.abspath(args['db'])
         else:
             path_to_fasta = args['db']
-        df_proteins = get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'], all_decoys_2=all_decoys_2, path_to_fasta=path_to_fasta)
+        df_proteins = get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'], decoy_infix=args['infix'], all_decoys_2=all_decoys_2, path_to_fasta=path_to_fasta)
         prot_ratio = 0.5
         df_proteins = df_proteins[df_proteins.apply(lambda x: not x['decoy'] or x['decoy2'], axis=1)]
         df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=1)
