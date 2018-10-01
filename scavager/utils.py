@@ -368,7 +368,7 @@ def get_features(dataframe):
                             'MS-GF:DeNovoScore', 'MS-GF:EValue', 'MS-GF:RawScore', 'MeanErrorAll', \
                             'MeanRelErrorAll', 'MeanRelErrorTop7', 'NumMatchedMainIons', 'StdevErrorAll', \
                             'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio', \
-                            'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio']:
+                            'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio', 'fragmentMT']:
             if not feature.startswith('mass shift'):
                 columns_to_remove.append(feature)
     feature_columns = feature_columns.drop(columns_to_remove)

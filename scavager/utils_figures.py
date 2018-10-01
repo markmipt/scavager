@@ -82,7 +82,7 @@ def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel
 def calc_max_x_value(df, df_proteins):
     cnt = 6 # number of basic figures 
     peptide_columns = set(df.columns)
-    features_list = ['massdiff_ppm', 'RT diff', 'num_missed_cleavages', 'assumed_charge', 'log_score']
+    features_list = ['massdiff_ppm', 'RT diff', 'fragmentMT', 'num_missed_cleavages', 'assumed_charge', 'log_score', ]
     for feature in features_list:
         if feature in peptide_columns:
             cnt += 1
@@ -107,6 +107,10 @@ def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
     subplot_start += 1
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='assumed_charge'), fig, subplot_max_x, subplot_start, xlabel='precursor charge')
     subplot_start += 1
+    if 'fragmentMT' in df.columns:
+        plot_hist_descriptor(get_descriptor_array(df, df_f, dname='fragmentMT'), fig, subplot_max_x, subplot_start, xlabel='median fragment error, Da')
+        subplot_start += 1
+
     if len(set(df['massdiff_int'])) > 1:
         plot_hist_descriptor(get_descriptor_array(df, df_f, dname='massdiff_int'), fig, subplot_max_x, subplot_start, xlabel='isotope mass difference, Da')
         subplot_start += 1
