@@ -4,7 +4,7 @@ Scavager - a proteomics post-search validation tool
 The .pep.xml or .mzid files are required for basic operation of the script. Currently supported search engines:
 Identipy, X!Tandem, Comet, MSFragger, msgf+, Morpheus.
 
-.fasta file is required for calculation NSAF (label-free quantitation index) and protein sequence coverage.
+.fasta file is required for calculation NSAF (label-free quantitation index), protein sequence coverage and amino acid statistics.
 
 For msgf+ and morpheus search engines it is desirable to provide cleavage rules used in search (These search engines do not report number of missed cleavages for peptides).
 
@@ -25,16 +25,16 @@ The output of Scavager contains:
 
 Installation
 -----
-In setup.py file directory run:
+Using the pip:
 
-    pip install .
+    pip install Scavager
 
 
 Usage
 -----
 Algorithm can be run with following command (works with Python2.7/Python3+):
 
-    scavager path_to_pepXML
+    scavager path_to_pepXML/MZID
 
     OR
 
