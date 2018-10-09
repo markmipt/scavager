@@ -1,5 +1,7 @@
 from __future__ import division
 from scipy.stats import scoreatpercentile
+from pyteomics import mass
+from collections import Counter
 from os import path
 import numpy as np
 import matplotlib
@@ -79,6 +81,41 @@ def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel
         ax.set_xticks(np.arange(int(cbins[0]), cbins[-1], 1))
         fig.canvas.draw()
 
+def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
+    ax = fig.add_subplot(subplot_max_x, 3, subplot_i)
+
+    # Generate list of 20 standart amino acids
+    std_aa_list = list(mass.std_aa_mass.keys())
+    std_aa_list.remove('O')
+    std_aa_list.remove('U')
+
+    # Count identified amino acids
+    aa_exp = Counter()
+    for pep in set(df_f['peptide']):
+        for aa in pep:
+            aa_exp[aa] += 1
+
+    # Count theoretical amino acids
+    aa_theor = Counter()
+    for prot_seq in set(df_proteins_f['sequence'].values):
+        for aa in prot_seq:
+            aa_theor[aa] += 1
+
+    aa_exp_sum = sum(aa_exp.values())
+    aa_theor_sum = sum(aa_theor.values())
+    lbls, vals = [], []
+    for aa in sorted(std_aa_list):
+        lbls.append(aa)
+        vals.append((aa_exp.get(aa, 0)/aa_exp_sum)/(aa_theor.get(aa, 0)/aa_theor_sum))
+    std_val = np.std(vals)
+    clrs = [greencolor if abs(x-1)<=2*std_val else redcolor for x in vals]
+    ax.bar(range(len(vals)), vals, color=clrs)
+    ax.set_xticks(range(len(lbls)))
+    ax.set_xticklabels(lbls)
+    ax.hlines(1.0, range(len(vals))[0]-1, range(len(vals))[-1]+1)
+    ax.set_ylabel('amino acid ID rate')
+
+
 def calc_max_x_value(df, df_proteins):
     cnt = 6 # number of basic figures 
     peptide_columns = set(df.columns)
@@ -92,7 +129,7 @@ def calc_max_x_value(df, df_proteins):
     if len(set(df['massdiff_int'])) > 1:
         cnt += 1
     if 'LOG10_NSAF' in df_proteins.columns:
-        cnt += 2 # add for NSAF and sequence coverage
+        cnt += 3 # add for NSAF, sequence coverage and aa_stats
     return cnt // 3 + (1 if (cnt % 3) else 0)
 
     
@@ -175,7 +212,8 @@ def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename
     plot_basic_figures(df_peptides, df_peptides_f, fig, subplot_max_x, 4, 'peptides')
     if 'LOG10_NSAF' in df_proteins.columns:
         plot_protein_figures(df_proteins, df_proteins_f, fig, subplot_max_x, 7)
-        descriptor_start_index += 2
+        plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, 9)
+        descriptor_start_index += 3
     plot_descriptors_figures(df, df_f, fig, subplot_max_x, descriptor_start_index)
     plt.grid(color='#EEEEEE')
     plt.tight_layout()

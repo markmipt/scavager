@@ -46,6 +46,7 @@ def process_file(args):
             path_to_fasta = path.abspath(args['db'])
         else:
             path_to_fasta = args['db']
+        print(path_to_fasta)
         df_proteins = get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'], decoy_infix=args['infix'], all_decoys_2=all_decoys_2, path_to_fasta=path_to_fasta)
         prot_ratio = 0.5
         df_proteins = df_proteins[df_proteins.apply(lambda x: not x['decoy'] or x['decoy2'], axis=1)]
