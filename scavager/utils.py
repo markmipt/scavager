@@ -386,13 +386,16 @@ def get_cat_model(df):
     train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
     x_train = get_X_array(train, feature_columns)
     y_train = get_Y_array(train)
+    print(x_train[:5])
     x_test = get_X_array(test, feature_columns)
     y_test = get_Y_array(test)
+    print(SEED)
+    np.random.seed(SEED)
     # model = CatBoostClassifier(iterations=1000, learning_rate=0.05, depth=10, loss_function='Logloss', logging_level='Silent', random_seed=SEED)
     # model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
 
     model = CatBoostClassifier(iterations=2500, learning_rate=0.005, depth=10, loss_function='Logloss', eval_metric='Logloss',
-                               od_type='Iter', od_wait=5, random_seed=SEED, logging_level='Silent')
+                               od_type='Iter', od_wait=5, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     print('Machine learning is finished...')
 
@@ -407,9 +410,15 @@ def calc_PEP(df):
     df['log_score'] = np.log10(df['ML score'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
     return df
 
+def calc_qvals(df, ratio):
+    df_t = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2', remove_decoy=False, formula=1, full_output=True, ratio=ratio)
+    df.loc[~df['decoy1'], 'q'] = df_t['q']
+    df.loc[df['decoy1'], 'q'] = -1
+    return df
+
 def get_columns_to_output(out_type):
     if out_type == 'psm_full':
-        return ['peptide', 'length', 'spectrum', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+        return ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2']
     elif out_type == 'psm':
         return ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',

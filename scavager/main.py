@@ -1,5 +1,8 @@
 from __future__ import division
-from .utils import NoDecoyError, get_columns_to_output, calc_psms, prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, get_proteins_dataframe, get_protein_groups, convert_tandem_cleave_rule_to_regexp
+from .utils import NoDecoyError, get_columns_to_output, calc_psms, \
+prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, \
+get_proteins_dataframe, get_protein_groups, convert_tandem_cleave_rule_to_regexp, \
+calc_qvals
 from .utils_figures import plot_outfigures
 from pyteomics import auxiliary as aux
 from os import path
@@ -30,6 +33,7 @@ def process_file(args):
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
 
     output_path_psms_full = path.join(outfolder, outbasename + '_PSMs_full.tsv')
+    df1 = calc_qvals(df1, ratio=pep_ratio)
     df1.to_csv(output_path_psms_full, sep='\t', index=False, columns=get_columns_to_output(out_type='psm_full'))
     df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
     if df1_f2.shape[0] > 0:
