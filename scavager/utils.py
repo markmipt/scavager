@@ -383,7 +383,6 @@ def get_Y_array(df):
 def get_cat_model(df):
     print('Starting machine learning...')
     feature_columns = get_features(df)
-    # cat_features = [idx for idx, f in enumerate(feature_columns) if f.startswith('mass shift')]
     train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
     x_train = get_X_array(train, feature_columns)
     y_train = get_Y_array(train)
@@ -394,8 +393,8 @@ def get_cat_model(df):
     # model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
 
     model = CatBoostClassifier(iterations=2500, learning_rate=0.005, depth=10, loss_function='Logloss', eval_metric='Logloss',
-                               od_type='Iter', od_wait=5, random_state=SEED, logging_level='Silent', max_ctr_complexity=1)
-    model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))#, cat_features=cat_features)
+                               od_type='Iter', od_wait=5, random_state=SEED, logging_level='Silent')
+    model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     print('Machine learning is finished...')
 
     return model
