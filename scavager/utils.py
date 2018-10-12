@@ -264,7 +264,7 @@ def add_mod_info(df_raw, mod):
     if 'term' not in mod_aa and mod_aa not in sequence:
         return -1
     else:
-        return mods_counter.get(mod, 0) >= 1
+        return (1 if mods_counter.get(mod, 0) >= 1 else 0)
 
 def prepare_mods(df):
     all_mods = set()
@@ -372,7 +372,7 @@ def get_features(dataframe):
             if not feature.startswith('mass shift'):
                 columns_to_remove.append(feature)
     feature_columns = feature_columns.drop(columns_to_remove)
-    return feature_columns
+    return sorted(feature_columns)
 
 def get_X_array(df, feature_columns):
     return df.loc[:, feature_columns].values
@@ -383,20 +383,19 @@ def get_Y_array(df):
 def get_cat_model(df):
     print('Starting machine learning...')
     feature_columns = get_features(df)
+    # cat_features = [idx for idx, f in enumerate(feature_columns) if f.startswith('mass shift')]
     train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
     x_train = get_X_array(train, feature_columns)
     y_train = get_Y_array(train)
-    print(x_train[:5])
     x_test = get_X_array(test, feature_columns)
     y_test = get_Y_array(test)
-    print(SEED)
     np.random.seed(SEED)
     # model = CatBoostClassifier(iterations=1000, learning_rate=0.05, depth=10, loss_function='Logloss', logging_level='Silent', random_seed=SEED)
     # model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
 
     model = CatBoostClassifier(iterations=2500, learning_rate=0.005, depth=10, loss_function='Logloss', eval_metric='Logloss',
-                               od_type='Iter', od_wait=5, random_state=SEED, logging_level='Silent')
-    model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
+                               od_type='Iter', od_wait=5, random_state=SEED, logging_level='Silent', max_ctr_complexity=1)
+    model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))#, cat_features=cat_features)
     print('Machine learning is finished...')
 
     return model
