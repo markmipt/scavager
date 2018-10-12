@@ -4,5 +4,5 @@ pandas
 pyteomics>=3.5
 lxml
 catboost
-sklearn
+scikit-learn
 matplotlib
