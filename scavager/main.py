@@ -25,17 +25,23 @@ def process_file(args):
     else:
         allowed_peptides = False
     try:
-        df1, all_decoys_2 = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'], decoy_infix=args['infix'], cleavage_rule=cleavage_rule, allowed_peptides=allowed_peptides, fdr=outfdr)
+        df1, all_decoys_2, num_psms_def = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'], decoy_infix=args['infix'], cleavage_rule=cleavage_rule, allowed_peptides=allowed_peptides, fdr=outfdr)
     except NoDecoyError:
         print('\nNo decoys were found. Please check decoy_prefix/infix parameter or your search output\n')
         return
     df1 = calc_PEP(df1)
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
 
+    df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+    if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
+        print('Machine learning works worse than default filtering: %d vs %d PSMs.\n Using only default search scores for machine learning...' % (df1_f2.shape[0], num_psms_def))
+        df1 = calc_PEP(df1, reduced=True)
+        df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+
+
     output_path_psms_full = path.join(outfolder, outbasename + '_PSMs_full.tsv')
     df1 = calc_qvals(df1, ratio=pep_ratio)
     df1.to_csv(output_path_psms_full, sep='\t', index=False, columns=get_columns_to_output(out_type='psm_full'))
-    df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
     if df1_f2.shape[0] > 0:
         output_path_psms = path.join(outfolder, outbasename + '_PSMs.tsv')
         df1_f2[~df1_f2['decoy2']].to_csv(output_path_psms, sep='\t', index=False, columns=get_columns_to_output(out_type='psm'))

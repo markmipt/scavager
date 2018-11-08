@@ -334,10 +334,11 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
     df1 = prepare_mods(df1)
     # except:
     #     pass
-
-    df1_f = aux.filter(df1, fdr=fdr, key='expect', is_decoy='decoy', correction=1, remove_decoy=True, formula=1)
+    pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
+    df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+    num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
     print('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d' \
-             % (df1_f[~df1_f['decoy']].shape[0]))
+             % (num_psms_def, ))
     try:
         print('Calibrating retention model...')
         with warnings.catch_warnings():
@@ -354,7 +355,7 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
         print('Probably retention times are missed in input file')
         df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, achrom.RCs_krokhin_100A_tfa))
         df1['RT diff'] = df1['RT exp']
-    return df1, all_decoys_2
+    return df1, all_decoys_2, num_psms_def
 
 def get_features(dataframe):
     feature_columns = dataframe.columns
@@ -380,9 +381,8 @@ def get_X_array(df, feature_columns):
 def get_Y_array(df):
     return df.loc[:, 'decoy1'].values
 
-def get_cat_model(df):
+def get_cat_model(df, feature_columns):
     print('Starting machine learning...')
-    feature_columns = get_features(df)
     train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
     x_train = get_X_array(train, feature_columns)
     y_train = get_Y_array(train)
@@ -399,9 +399,12 @@ def get_cat_model(df):
 
     return model
 
-def calc_PEP(df):
-    feature_columns = get_features(df)
-    cat_model = get_cat_model(df)
+def calc_PEP(df, reduced=False):
+    if not reduced:
+        feature_columns = get_features(df)
+    else:
+        feature_columns = ['expect']
+    cat_model = get_cat_model(df, feature_columns)
     x_all = get_X_array(df, feature_columns)
     df['ML score'] = cat_model.predict_proba(x_all)[:, 1]
     pep_min = df['ML score'].min()
