@@ -8,6 +8,9 @@ from catboost import CatBoostClassifier
 from sklearn.model_selection import train_test_split
 from os import path, mkdir
 from collections import Counter, defaultdict
+from .utils_figures import get_fdbinsize
+from scipy.stats import scoreatpercentile
+from sklearn.isotonic import IsotonicRegression
 import warnings
 warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
 
@@ -110,7 +113,7 @@ def process_fasta(df, path_to_fasta):
 
 def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
     proteins_dict = dict()
-    for proteins, protein_descriptions, peptide, pep in df1_peptides_f[['protein', 'protein_descr', 'peptide', 'ML score']].values:
+    for proteins, protein_descriptions, peptide, pep in df1_peptides_f[['protein', 'protein_descr', 'peptide', 'PEP']].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):
             if prot not in proteins_dict:
                 proteins_dict[prot] = dict()
@@ -399,7 +402,7 @@ def get_cat_model(df, feature_columns):
 
     return model
 
-def calc_PEP(df, reduced=False):
+def calc_PEP(df, pep_ratio=1.0, reduced=False):
     if not reduced:
         feature_columns = get_features(df)
     else:
@@ -407,6 +410,36 @@ def calc_PEP(df, reduced=False):
     cat_model = get_cat_model(df, feature_columns)
     x_all = get_X_array(df, feature_columns)
     df['ML score'] = cat_model.predict_proba(x_all)[:, 1]
+
+
+    df0_t = df[~df['decoy']]
+    df0_d = df[df['decoy']]
+    df0_d = df0_d[~df0_d['decoy1']]
+
+    binsize = min(get_fdbinsize(df0_t['ML score'].values), get_fdbinsize(df0_d['ML score'].values))
+    tmp = np.concatenate([df0_t['ML score'].values, df0_d['ML score'].values])
+    minv = df['ML score'].min()
+    maxv = df['ML score'].max()
+    lbin_s = scoreatpercentile(tmp, 1.0)
+    lbin = minv
+    if lbin_s and abs((lbin - lbin_s) / lbin_s) > 1.0:
+        lbin = lbin_s * 1.05
+    rbin_s = scoreatpercentile(tmp, 99.0)
+    rbin = maxv
+    if rbin_s and abs((rbin - rbin_s) / rbin_s) > 1.0:
+        rbin = rbin_s * 1.05
+    rbin += 1.5 * binsize
+    cbins, width = np.arange(lbin, rbin + 2 * binsize, binsize), binsize
+
+    H1, b1 = np.histogram(df0_d['ML score'].values, bins=cbins)
+    H2, b2 = np.histogram(df0_t['ML score'].values, bins=cbins)
+
+    H2[H2 == 0] = 1
+    H1_2 = H1 * (1 + 1./pep_ratio) / H2
+    ir = IsotonicRegression(y_min=0, y_max=1.0)
+    ir.fit(b1[:-1], H1_2)
+    df['PEP'] = ir.predict(df['ML score'].values)
+    
     pep_min = df['ML score'].min()
     df['log_score'] = np.log10(df['ML score'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
     return df
@@ -420,13 +453,13 @@ def calc_qvals(df, ratio):
 def get_columns_to_output(out_type):
     if out_type == 'psm_full':
         return ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2']
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2', 'PEP']
     elif out_type == 'psm':
         return ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy']
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP']
     elif out_type == 'peptide':
         return ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy']
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP']
     elif out_type == 'protein':
         return ['dbname','description','PSMs','peptides','NSAF','sq','score','length', 'all proteins', 'groupleader']
 

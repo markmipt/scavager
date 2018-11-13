@@ -29,13 +29,13 @@ def process_file(args):
     except NoDecoyError:
         print('\nNo decoys were found. Please check decoy_prefix/infix parameter or your search output\n')
         return
-    df1 = calc_PEP(df1)
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
+    df1 = calc_PEP(df1, pep_ratio=pep_ratio)
 
     df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
     if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
         print('Machine learning works worse than default filtering: %d vs %d PSMs.\n Using only default search scores for machine learning...' % (df1_f2.shape[0], num_psms_def))
-        df1 = calc_PEP(df1, reduced=True)
+        df1 = calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
         df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
 
 

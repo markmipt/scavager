@@ -173,7 +173,12 @@ def get_bins_for_descriptors(inarrays):
     maxv = tmp.max()
     if len(set(tmp)) <= 15:
         return np.arange(minv, maxv + 2, 1.0), 1.0
-    binsize = get_fdbinsize(tmp)
+    binsize = False
+    for inar in inarrays:
+        binsize_tmp = get_fdbinsize(inar)
+        if not binsize or binsize > binsize_tmp:
+            binsize = binsize_tmp
+    # binsize = get_fdbinsize(tmp)
     if binsize < float(maxv - minv) / 300:
         binsize = float(maxv - minv) / 300
     lbin_s = scoreatpercentile(tmp, 1.0)
