@@ -62,12 +62,17 @@ def convert_tandem_cleave_rule_to_regexp(cleavage_rule):
                 out_rules.append('(?=[%s])' % (cut, ))
     return '|'.join(out_rules)
 
+def calc_TOP3(df):
+    df['TOP3'] = df['TOP3'].apply(lambda z: sum(sorted(z, reverse=True)[:3]))
+    return df
+
 def calc_NSAF(df):
     df['NSAF'] = df['PSMs'] / df['length']
     NSAF_sum = np.sum(df['NSAF'])
     df['NSAF'] = df['NSAF'] / NSAF_sum
     if sum(pd.notna(df['NSAF'])):
         df['LOG10_NSAF'] = np.log10(df['NSAF'])
+    df.loc[pd.isna(df['NSAF']), 'NSAF'] = 0.0
     return df
 
 def keywithmaxval(d):
@@ -113,7 +118,7 @@ def process_fasta(df, path_to_fasta):
 
 def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
     proteins_dict = dict()
-    for proteins, protein_descriptions, peptide, pep in df1_peptides_f[['protein', 'protein_descr', 'peptide', 'PEP']].values:
+    for proteins, protein_descriptions, peptide, pep, ms1_i in df1_peptides_f[['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity']].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):
             if prot not in proteins_dict:
                 proteins_dict[prot] = dict()
@@ -123,6 +128,7 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, d
                 proteins_dict[prot]['peptides set'] = set()
                 proteins_dict[prot]['sequence'] = ''
                 proteins_dict[prot]['NSAF'] = 0
+                proteins_dict[prot]['TOP3'] = []
                 proteins_dict[prot]['sq'] = 0
                 proteins_dict[prot]['score'] = dict()
                 proteins_dict[prot]['q-value'] = 1.0
@@ -132,6 +138,7 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, d
                     proteins_dict[prot]['decoy'] = decoy_infix in prot
                 proteins_dict[prot]['decoy2'] = prot in all_decoys_2
             proteins_dict[prot]['peptides set'].add(peptide)
+            proteins_dict[prot]['TOP3'].append(ms1_i)
             proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
 
     for proteins in df1_f2[['protein']].values:
@@ -148,6 +155,7 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, d
     df_proteins['peptides'] = df_proteins['peptides set'].apply(len)
     df_proteins['PSMs'] = df_proteins.apply(lambda x: max(x['PSMs'], x['peptides']), axis=1)#df_proteins.loc[:, ['PSMs', 'peptides']].max(axis=1)
     df_proteins = calc_NSAF(df_proteins)
+    df_proteins = calc_TOP3(df_proteins)
     df_proteins['score'] = df_proteins['score'].apply(lambda x: np.prod(list(x.values())))
     return df_proteins
 
@@ -306,6 +314,8 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
         df1['expect'] = df1['MS-GF:EValue']
 
     df1 = df1[~pd.isna(df1['peptide'])]
+    if 'MS1Intensity' not in df1:
+        df1['MS1Intensity'] = 0.0
     if allowed_peptides:
         df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
     df1['length'] = df1['peptide'].apply(len)
@@ -465,7 +475,7 @@ def get_columns_to_output(out_type):
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP',\
          'MS1Intensity', 'ISOWIDTHDIFF', 'RTwidth']
     elif out_type == 'protein':
-        return ['dbname','description','PSMs','peptides','NSAF','sq','score','length', 'all proteins', 'groupleader']
+        return ['dbname','description','PSMs','peptides','NSAF','TOP3','sq','score','length', 'all proteins', 'groupleader']
 
 def calc_psms(df):
     peptides = Counter(df['peptide'])
