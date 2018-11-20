@@ -383,7 +383,7 @@ def get_features(dataframe):
                             'MeanRelErrorAll', 'MeanRelErrorTop7', 'NumMatchedMainIons', 'StdevErrorAll', \
                             'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio', \
                             'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio', 'fragmentMT', 'ISOWIDTHDIFF', \
-                            'RTwidth', 'MS1Intensity', 'sumI_to_MS1Intensity']:
+                            'MS1Intensity', 'sumI_to_MS1Intensity']:
             if not feature.startswith('mass shift'):
                 columns_to_remove.append(feature)
     feature_columns = feature_columns.drop(columns_to_remove)
@@ -465,15 +465,15 @@ def get_columns_to_output(out_type):
     if out_type == 'psm_full':
         return ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2', 'PEP',\
-         'MS1Intensity', 'ISOWIDTHDIFF', 'RTwidth']
+         'MS1Intensity', 'ISOWIDTHDIFF']
     elif out_type == 'psm':
         return ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP',\
-         'MS1Intensity', 'ISOWIDTHDIFF', 'RTwidth']
+         'MS1Intensity', 'ISOWIDTHDIFF']
     elif out_type == 'peptide':
         return ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP',\
-         'MS1Intensity', 'ISOWIDTHDIFF', 'RTwidth']
+         'MS1Intensity', 'ISOWIDTHDIFF']
     elif out_type == 'protein':
         return ['dbname','description','PSMs','peptides','NSAF','TOP3','sq','score','length', 'all proteins', 'groupleader']
 

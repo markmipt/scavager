@@ -119,7 +119,7 @@ def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
 def calc_max_x_value(df, df_proteins):
     cnt = 6 # number of basic figures 
     peptide_columns = set(df.columns)
-    features_list = ['massdiff_ppm', 'RT diff', 'fragmentMT', 'num_missed_cleavages', 'assumed_charge', 'log_score', 'ISOWIDTHDIFF', 'RTwidth', 'MS1Intensity']
+    features_list = ['massdiff_ppm', 'RT diff', 'fragmentMT', 'num_missed_cleavages', 'assumed_charge', 'log_score', 'ISOWIDTHDIFF', 'MS1Intensity']
     for feature in features_list:
         if feature in peptide_columns:
             cnt += 1
@@ -149,9 +149,6 @@ def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
         subplot_start += 1
     if 'ISOWIDTHDIFF' in df.columns:
         plot_hist_descriptor(get_descriptor_array(df, df_f, dname='ISOWIDTHDIFF'), fig, subplot_max_x, subplot_start, xlabel='isolation mass error, Da')
-        subplot_start += 1
-    if 'RTwidth' in df.columns:
-        plot_hist_descriptor(get_descriptor_array(df, df_f, dname='RTwidth'), fig, subplot_max_x, subplot_start, xlabel='RT width, min')
         subplot_start += 1
     if 'MS1Intensity' in df.columns:
         plot_hist_descriptor(get_descriptor_array(df, df_f, dname='MS1Intensity'), fig, subplot_max_x, subplot_start, xlabel='MS1 Intensity')
