@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 try:
     import seaborn
     seaborn.set(rc={'axes.facecolor':'#ffffff'})
@@ -81,6 +82,17 @@ def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel
         ax.set_xticks(np.arange(int(cbins[0]), cbins[-1], 1))
         fig.canvas.draw()
 
+def plot_legend(fig, subplot_max_x, subplot_start):
+    ax = fig.add_subplot(subplot_max_x, 3, subplot_start)
+    legend_elements = [Patch(facecolor=greencolor, edgecolor='r',
+                            label='Positive IDs'),
+                    Patch(facecolor=bluecolor, edgecolor='r',
+                            label='Targets'),
+                    Patch(facecolor=redcolor, edgecolor='r',
+                            label='Decoys')]
+    ax.legend(handles=legend_elements, loc='center', prop={'size': 24})
+    ax.set_axis_off()
+
 def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
     ax = fig.add_subplot(subplot_max_x, 3, subplot_i)
 
@@ -117,7 +129,7 @@ def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
 
 
 def calc_max_x_value(df, df_proteins):
-    cnt = 6 # number of basic figures 
+    cnt = 7 # number of basic figures 
     peptide_columns = set(df.columns)
     features_list = ['massdiff_ppm', 'RT diff', 'fragmentMT', 'num_missed_cleavages', 'assumed_charge', 'log_score', 'ISOWIDTHDIFF', 'MS1Intensity']
     for feature in features_list:
@@ -162,6 +174,8 @@ def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
             plot_hist_descriptor(get_descriptor_array(df, df_f, dname=df_col), fig, subplot_max_x, subplot_start, xlabel=df_col)
             subplot_start += 1
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='log_score'), fig, subplot_max_x, subplot_start, xlabel='LOG10(ML score)')
+    subplot_start += 1
+    plot_legend(fig, subplot_max_x, subplot_start)
     subplot_start += 1
   
 def get_bins(inarrays, bin_size_one=False):
