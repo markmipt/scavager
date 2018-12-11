@@ -118,7 +118,7 @@ def process_fasta(df, path_to_fasta):
 
 def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
     proteins_dict = dict()
-    for proteins, protein_descriptions, peptide, pep, ms1_i in df1_peptides_f[['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity']].values:
+    for proteins, protein_descriptions, peptide, pep, ms1_i in df1_f2[['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity']].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):
             if prot not in proteins_dict:
                 proteins_dict[prot] = dict()
@@ -140,12 +140,8 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, d
             proteins_dict[prot]['peptides set'].add(peptide)
             proteins_dict[prot]['TOP3'].append(ms1_i)
             proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
+            proteins_dict[prot]['PSMs'] += 1
 
-    for proteins in df1_f2[['protein']].values:
-        # print(proteins)
-        for prot in proteins[0]:
-            if prot in proteins_dict:
-                proteins_dict[prot]['PSMs'] += 1
     df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
     # print(df_proteins[df_proteins['PSMs'] == 0])
     if path_to_fasta:
