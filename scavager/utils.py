@@ -113,7 +113,7 @@ def process_fasta(df, path_to_fasta):
     for x in fasta.read(path_to_fasta):
         dbname = x[0].split(' ')[0]
         protsS[dbname] = x[1]
-    df['sequence'] = df['dbname'].apply(lambda x: protsS.get(x, ''))
+    df['sequence'] = df['dbname'].apply(lambda x: protsS.get(x, protsS.get(x.split(' ')[0], '')))
     return df
 
 def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
