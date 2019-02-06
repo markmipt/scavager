@@ -108,12 +108,22 @@ def get_protein_groups(df):
     return df
 
 
-def process_fasta(df, path_to_fasta):
+def process_fasta(df, path_to_fasta, decoy_prefix, decoy_infix=False):
     protsS = dict()
+    decoy_check_flag = False
     for x in fasta.read(path_to_fasta):
         dbname = x[0].split(' ')[0]
+        if not decoy_check_flag:
+            if (not decoy_infix and dbname.startswith(decoy_prefix)) or (decoy_infix and decoy_infix in dbname):
+                decoy_check_flag = True
         protsS[dbname] = x[1]
     df['sequence'] = df['dbname'].apply(lambda x: protsS.get(x, protsS.get(x.split(' ')[0], '')))
+    if not decoy_check_flag:
+        if not decoy_infix:
+            df['sequence'] = df.apply(lambda x: x['sequence'] if x['sequence'] else protsS.get(x['dbname'].replace(decoy_prefix, ''), protsS.get(x['dbname'].split(' ')[0].replace(decoy_prefix, ''), '')), axis=1)
+        else:
+            df['sequence'] = df.apply(lambda x: x['sequence'] if x['sequence'] else protsS.get(x['dbname'].replace(decoy_infix, ''), protsS.get(x['dbname'].split(' ')[0].replace(decoy_infix, ''), '')), axis=1)
+
     return df
 
 def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
@@ -145,7 +155,7 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, d
     df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
     # print(df_proteins[df_proteins['PSMs'] == 0])
     if path_to_fasta:
-        df_proteins = process_fasta(df_proteins, path_to_fasta)
+        df_proteins = process_fasta(df_proteins, path_to_fasta, decoy_prefix, decoy_infix)
     df_proteins['length'] = df_proteins['sequence'].apply(len)
     df_proteins['sq'] = df_proteins.apply(calc_sq, axis=1)
     df_proteins['peptides'] = df_proteins['peptides set'].apply(len)
