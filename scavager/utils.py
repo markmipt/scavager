@@ -389,7 +389,7 @@ def get_X_array(df, feature_columns):
     return df.loc[:, feature_columns].values
 
 def get_Y_array(df):
-    return df.loc[:, 'decoy1'].values
+    return df.loc[:, 'decoy1'].values.astype(float)
 
 def get_cat_model(df, feature_columns):
     print('Starting machine learning...')
