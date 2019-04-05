@@ -20,5 +20,7 @@ setup(
                         'Programming Language :: Python :: 3',
                         'Topic :: Scientific/Engineering :: Bio-Informatics'],
     license          = 'License :: OSI Approved :: Apache Software License',
-    entry_points     = {'console_scripts': ['scavager = scavager.search:run', ]}
+    entry_points     = {'console_scripts': ['scavager = scavager.search:run', 
+                                            'scav2diffacto = scavager.scav2diffacto:run',
+                                            'scav2nsaf = scavager.scav2nsaf:run']}
     )
