@@ -22,7 +22,7 @@ def run():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-S1', nargs='+', help='input files for S1 sample', required=True)
-    parser.add_argument('-S2', nargs='+', help='input files for S2 sample', required=True)
+    parser.add_argument('-S2', nargs='+', help='input files for S2 sample')
     parser.add_argument('-S3', nargs='+', help='input files for S3 sample')
     parser.add_argument('-S4', nargs='+', help='input files for S4 sample')
     parser.add_argument('-db', help='path to fasta file', required=True)
