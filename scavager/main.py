@@ -1,5 +1,5 @@
 from __future__ import division
-from .utils import NoDecoyError, get_columns_to_output, calc_psms, \
+from .utils import NoDecoyError, WrongInputError, get_columns_to_output, calc_psms, \
 prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, \
 get_proteins_dataframe, get_protein_groups, convert_tandem_cleave_rule_to_regexp, \
 calc_qvals
@@ -29,6 +29,10 @@ def process_file(args):
     except NoDecoyError:
         print('\nNo decoys were found. Please check decoy_prefix/infix parameter or your search output\n')
         return
+    except WrongInputError:
+        print('Unsupported input file format. Use .pep.xml or .mzid files')
+        return
+
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
     df1 = calc_PEP(df1, pep_ratio=pep_ratio)
 

@@ -17,6 +17,9 @@ warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
 class NoDecoyError(ValueError):
     pass
 
+class WrongInputError(NotImplementedError):
+    pass
+
 def convert_tandem_cleave_rule_to_regexp(cleavage_rule):
 
     def get_sense(c_term_rule, n_term_rule):
@@ -295,11 +298,13 @@ def prepare_mods(df):
 def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False, allowed_peptides=False, fdr=0.01):
     if not cleavage_rule:
         cleavage_rule = parser.expasy_rules['trypsin']
-    if infile_path.endswith('.pep.xml'):
+    if infile_path.lower().endswith('.pep.xml') or infile_path.lower().endswith('.pepxml'):
         df1 = pepxml.DataFrame(infile_path)
         ftype = 'pepxml'
-    else:
+    elif infile_path.lower().endswith('.mzid'):
         df1 = mzid.DataFrame(infile_path)
+    else:
+        raise WrongInputError()
 
     if 'Morpheus Score' in df1.columns:
         df1 = df1[df1['Morpheus Score'] != 0]
