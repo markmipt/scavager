@@ -33,6 +33,9 @@ def process_file(args):
     df1 = calc_PEP(df1, pep_ratio=pep_ratio)
 
     df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+    if df1_f2.shape[0] == 0:
+        df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
+
     if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
         print('Machine learning works worse than default filtering: %d vs %d PSMs.\n Using only default search scores for machine learning...' % (df1_f2.shape[0], num_psms_def))
         df1 = calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
@@ -49,6 +52,8 @@ def process_file(args):
         df1 = calc_psms(df1)
         df1_peptides = df1.sort_values('ML score', ascending=True).drop_duplicates(['peptide'])
         df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+        if df1_peptides_f.shape[0] == 0:
+            df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
         output_path_peptides = path.join(outfolder, outbasename + '_peptides.tsv')
         df1_peptides_f[~df1_peptides_f['decoy2']].to_csv(output_path_peptides, sep='\t', index=False, columns=get_columns_to_output(out_type='peptide'))
 
@@ -56,11 +61,12 @@ def process_file(args):
             path_to_fasta = path.abspath(args['db'])
         else:
             path_to_fasta = args['db']
-        print(path_to_fasta)
         df_proteins = get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'], decoy_infix=args['infix'], all_decoys_2=all_decoys_2, path_to_fasta=path_to_fasta)
         prot_ratio = 0.5
         df_proteins = df_proteins[df_proteins.apply(lambda x: not x['decoy'] or x['decoy2'], axis=1)]
         df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=1)
+        if df_proteins_f.shape[0] == 0:
+            df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=0)
         df_proteins_f = get_protein_groups(df_proteins_f)
         output_path_proteins = path.join(outfolder, outbasename + '_proteins.tsv')
         df_proteins_f.to_csv(output_path_proteins, sep='\t', index=False, columns=get_columns_to_output(out_type='protein')) 

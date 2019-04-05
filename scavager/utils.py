@@ -355,6 +355,8 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
     #     pass
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
     df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+    if df1_f.shape[0] == 0:
+        df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)    
     num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
     print('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d' \
              % (num_psms_def, ))
