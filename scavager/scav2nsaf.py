@@ -68,8 +68,8 @@ def run():
                 df1 = df1.sort_values('q', ascending=True).drop_duplicates(['peptide'])
                 df1[label] = df1['count']
                 # df1[label] = df1[label].replace([0, 0.0], np.nan)
-                df1['protein'] = df1['protein'].apply(lambda z: ';'.join([u for u in ast.literal_eval(z) if u in allowed_prots]))
-                df1 = df1[df1['protein'].apply(lambda z: z != '')]
+                df1['protein'] = df1['protein'].apply(lambda z: [u for u in ast.literal_eval(z) if u in allowed_prots])
+                df1 = df1[df1['protein'].apply(lambda z: len(z)>0)]
                 df1 = df1[['peptide', 'protein', label]]
                 if df_final is False:
                     df_final = df1
@@ -91,7 +91,7 @@ def run():
     df_final.fillna(value='')
 
     cols = df_final.columns.difference(['proteins'])
-    genres = df_final['proteins'].str.split(';')
+    genres = df_final['proteins']#.str.split(';')
     df_final =  (df_final.loc[df_final.index.repeat(genres.str.len()), cols]
          .assign(dbname=list(chain.from_iterable(genres.tolist()))))
     df_final = df_final.groupby('dbname').sum()
