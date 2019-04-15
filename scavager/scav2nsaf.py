@@ -38,17 +38,18 @@ def run():
     ''',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('-S1', nargs='+', help='input files for S1 sample', required=True)
-    parser.add_argument('-S2', nargs='+', help='input files for S2 sample')
-    parser.add_argument('-S3', nargs='+', help='input files for S3 sample')
-    parser.add_argument('-S4', nargs='+', help='input files for S4 sample')
+    parser.add_argument('-S1', nargs='+', metavar='FILE', help='input files for S1 sample', required=True)
+    parser.add_argument('-S2', nargs='+', metavar='FILE', help='input files for S2 sample')
+    parser.add_argument('-S3', nargs='+', metavar='FILE', help='input files for S3 sample')
+    parser.add_argument('-S4', nargs='+', metavar='FILE', help='input files for S4 sample')
     parser.add_argument('-u', '--union',  help='pool the files together for the samples', action='store_true')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-a', '--autolabel', help='in union mode, derive sample labels from common name prefixes',
         action='store_true')
-    group.add_argument('--labels', nargs='+', help='labels for samples in union mode (same number as samples)')
-    parser.add_argument('-db', help='path to fasta file', required=True)
-    parser.add_argument('-out', help='name of nsaf output file', default='nsaf_out.txt')
+    group.add_argument('--labels', nargs='+', metavar='LABEL',
+        help='labels for samples in union mode (same number as samples)')
+    parser.add_argument('-db', metavar='FILE', help='path to fasta file', required=True)
+    parser.add_argument('-out', metavar='FILE', help='name of nsaf output file', default='nsaf_out.txt')
     parser.add_argument('-version', action='version', version='%s' % (pkg_resources.require("scavager")[0], ))
     args = vars(parser.parse_args())
 
