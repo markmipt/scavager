@@ -43,34 +43,39 @@ def run():
     parser.add_argument('-S3', nargs='+', help='input files for S3 sample')
     parser.add_argument('-S4', nargs='+', help='input files for S4 sample')
     parser.add_argument('-u', '--union',  help='pool the files together for the samples', action='store_true')
-    parser.add_argument('-a', '--autolabel', help='in union mode, derive sample labels from common name prefixes',
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-a', '--autolabel', help='in union mode, derive sample labels from common name prefixes',
         action='store_true')
+    group.add_argument('--labels', nargs='+', help='labels for samples in union mode (same number as samples)')
     parser.add_argument('-db', help='path to fasta file', required=True)
     parser.add_argument('-out', help='name of nsaf output file', default='nsaf_out.txt')
     parser.add_argument('-version', action='version', version='%s' % (pkg_resources.require("scavager")[0], ))
     args = vars(parser.parse_args())
 
+    samples = ['S1', 'S2', 'S3', 'S4']
+    labels = args['labels'] if args['labels'] else samples
 
     df_final = False
 
     allowed_prots = set()
     allowed_peptides = set()
 
-    for sample_num in ['S1', 'S2', 'S3', 'S4']:
+    for sample_num in samples:
         if args[sample_num]:
             for z in args[sample_num]:
                 df0 = pd.read_csv(z, sep='\t')
                 allowed_prots.update(df0['dbname'])
 
 
-    for sample_num in ['S1', 'S2', 'S3', 'S4']:
+    for sample_num in samples:
         if args[sample_num]:
             for z in args[sample_num]:
                 df0 = pd.read_csv(z.replace('_proteins.tsv', '_peptides.tsv'), sep='\t')
                 allowed_peptides.update(df0['peptide'])
 
 
-    for sample_num in ['S1', 'S2', 'S3', 'S4']:
+
+    for sample_num, label in zip(samples, labels):
         if args[sample_num]:
             if not args['union']:
                 for z in args[sample_num]:
@@ -85,8 +90,6 @@ def run():
             else:
                 if args['autolabel']:
                     label = os.path.commonprefix(args[sample_num]).rstrip('_')
-                else:
-                    label = sample_num
                 df1 = read_table(args[sample_num], allowed_peptides, allowed_prots, label=label)
                 if df_final is False:
                     df_final = df1
