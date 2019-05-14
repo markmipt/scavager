@@ -11,6 +11,7 @@ from collections import Counter, defaultdict
 from .utils_figures import get_fdbinsize
 from scipy.stats import scoreatpercentile
 from sklearn.isotonic import IsotonicRegression
+import logging
 import warnings
 warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
 
@@ -156,7 +157,6 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, d
             proteins_dict[prot]['PSMs'] += 1
 
     df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
-    # print(df_proteins[df_proteins['PSMs'] == 0])
     if path_to_fasta:
         df_proteins = process_fasta(df_proteins, path_to_fasta, decoy_prefix, decoy_infix)
     df_proteins['length'] = df_proteins['sequence'].apply(len)
@@ -207,7 +207,7 @@ def calc_RT(seq, RC):
         return achrom.calculate_RT(seq, RC)
     except:
         return 0
-    
+
 def is_decoy(proteins, decoy_prefix, decoy_infix=False):
     if not decoy_infix:
         return all(z.startswith(decoy_prefix) for z in proteins)
@@ -310,7 +310,7 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
         df1 = df1[df1['Morpheus Score'] != 0]
         df1['expect'] = 1 / df1['Morpheus Score']
         df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=cleavage_rule))
-        
+
     if 'MS-GF:EValue' in df1.columns:
         #MSGF search engine
         ftype = 'msgf'
@@ -361,12 +361,11 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
     df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
     if df1_f.shape[0] == 0:
-        df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)    
+        df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
     num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
-    print('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d' \
-             % (num_psms_def, ))
+    logging.info('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d', num_psms_def)
     try:
-        print('Calibrating retention model...')
+        logging.info('Calibrating retention model...')
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             retention_coefficients = achrom.get_RCs_vary_lcp(df1_f['peptide'].values, \
@@ -374,11 +373,11 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
         df1_f['RT pred'] = df1_f['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
         df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
         _, _, r_value, std_value = aux.linear_regression(df1_f['RT pred'], df1_f['RT exp'])
-        print('R^2 = %f , std = %f' % (r_value**2, std_value))
+        logging.info('R^2 = %f , std = %f', r_value**2, std_value)
         df1['RT diff'] = df1['RT pred'] - df1['RT exp']
-        print('Retention model calibrated successfully')
+        logging.info('Retention model calibrated successfully.')
     except:
-        print('Probably retention times are missed in input file')
+        logging.warning('Retention times are probably missing in input file.')
         df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, achrom.RCs_krokhin_100A_tfa))
         df1['RT diff'] = df1['RT exp']
     return df1, all_decoys_2, num_psms_def
@@ -409,7 +408,7 @@ def get_Y_array(df):
     return df.loc[:, 'decoy1'].values.astype(float)
 
 def get_cat_model(df, feature_columns):
-    print('Starting machine learning...')
+    logging.info('Starting machine learning...')
     train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
     x_train = get_X_array(train, feature_columns)
     y_train = get_Y_array(train)
@@ -422,7 +421,7 @@ def get_cat_model(df, feature_columns):
     model = CatBoostClassifier(iterations=2500, learning_rate=0.005, depth=10, loss_function='Logloss', eval_metric='Logloss',
                                od_type='Iter', od_wait=5, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
-    print('Machine learning is finished...')
+    logging.info('Machine learning is finished...')
 
     return model
 
@@ -463,7 +462,7 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
     ir = IsotonicRegression(y_min=0, y_max=1.0)
     ir.fit(b1[:-1], H1_2)
     df['PEP'] = ir.predict(df['ML score'].values)
-    
+
     pep_min = df['ML score'].min()
     df['log_score'] = np.log10(df['ML score'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
     return df
