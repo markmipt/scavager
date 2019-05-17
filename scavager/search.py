@@ -1,9 +1,13 @@
 from __future__ import division
 import argparse
-from . import main, utils
+from . import main
 import pkg_resources
+import logging
 
 def run():
+    logging.basicConfig(format='%(levelname)9s: %(asctime)s %(message)s',
+            datefmt='[%H:%M:%S]', level=logging.INFO)
+
     parser = argparse.ArgumentParser(
         description='postsearch analysis of peptides and proteins',
         epilog='''
@@ -30,10 +34,10 @@ def run():
     parser.add_argument('-allowed_peptides', help='Path to file with peptides considered in postsearch analysis.\
     Sequences must be separated by new line. For example, it can be variant peptides and its decoys in case \
     of proteogenomics searches for group-specific FDR calculation', default='')
+    parser.add_argument('-sf', '--separate-figures', action='store_true', help='save figures as separate files')
     parser.add_argument('-version', action='version', version='%s' % (pkg_resources.require("scavager")[0], ))
     args = vars(parser.parse_args())
     main.process_file(args)
-
 
 
 if __name__ == '__main__':

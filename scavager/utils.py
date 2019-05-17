@@ -343,25 +343,26 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
         df1 = df1.drop(['retention_time_sec', ], axis=1)
 
     df1['massdiff_int'] = df1['massdiff'].apply(lambda x: int(round(x, 0)))
-    df1['massdiff_ppm'] = 1e6 * (df1['massdiff'] - df1['massdiff_int'] * 1.003354)/ df1['calc_neutral_pep_mass']
+    df1['massdiff_ppm'] = 1e6 * (df1['massdiff'] - df1['massdiff_int'] * 1.003354) / df1['calc_neutral_pep_mass']
 
     df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)
     if not np.sum(df1['decoy']):
         raise NoDecoyError()
     df1, all_decoys_2 = split_decoys(df1, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)
     df1 = remove_column_hit_rank(df1)
-    # try:
+
     if ftype == 'pepxml':
         df1['mods_counter'] = df1.apply(parse_mods, axis=1)
     elif ftype == 'msgf':
         df1['mods_counter'] = df1.apply(parse_mods_msgf, axis=1)
     df1 = prepare_mods(df1)
-    # except:
-    #     pass
-    pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
-    df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+
+    pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
+    df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False,
+        remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
     if df1_f.shape[0] == 0:
-        df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
+        df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False,
+            remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
     num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
     logging.info('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d', num_psms_def)
     try:
@@ -452,7 +453,7 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
     if rbin_s and abs((rbin - rbin_s) / rbin_s) > 1.0:
         rbin = rbin_s * 1.05
     rbin += 1.5 * binsize
-    cbins, width = np.arange(lbin, rbin + 2 * binsize, binsize), binsize
+    cbins = np.arange(lbin, rbin + 2 * binsize, binsize)
 
     H1, b1 = np.histogram(df0_d['ML score'].values, bins=cbins)
     H2, b2 = np.histogram(df0_t['ML score'].values, bins=cbins)

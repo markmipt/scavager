@@ -9,12 +9,11 @@ import os.path
 import logging
 
 def process_file(args):
-    logging.basicConfig(format='%(levelname)9s: %(asctime)s %(message)s',
-            datefmt='[%H:%M:%S]', level=logging.INFO)
     fname = args['file']
     outfolder = get_output_folder(args['o'], fname)
     outbasename = get_output_basename(fname)
     outfdr = args['fdr'] / 100
+    sf = args['separate_figures']
     logging.info('Loading file %s...', os.path.basename(fname))
     if args['e']:
         cleavage_rule = convert_tandem_cleave_rule_to_regexp(args['e'])
@@ -93,7 +92,8 @@ def process_file(args):
             columns=get_columns_to_output(out_type='protein'))
 
         plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']],
-            outfolder, outbasename, df_proteins=df_proteins, df_proteins_f=df_proteins_f[~df_proteins_f['decoy2']])
+            outfolder, outbasename, df_proteins=df_proteins, df_proteins_f=df_proteins_f[~df_proteins_f['decoy2']],
+            separate_figures=sf)
 
         logging.info('Final results at %s%% FDR level:', args['fdr'])
         logging.info('Identified PSMs: %s', df1_f2[~df1_f2['decoy2']].shape[0])
