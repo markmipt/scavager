@@ -53,7 +53,7 @@ def run():
     for sample_num in ['S1', 'S2', 'S3', 'S4']:
         if args[sample_num]:
             for z in args[sample_num]:
-                label = z.replace('_proteins.tsv', '')
+                label = sample_num + '_' + z.replace('_proteins.tsv', '')
                 df1 = pd.read_table(z.replace('_proteins.tsv', '_PSMs_full.tsv'))
                 # df1 = pd.read_table(z.replace('_proteins.tsv', '_PSMs.tsv'))
                 df1 = df1[df1['peptide'].apply(lambda z: z in allowed_peptides)]

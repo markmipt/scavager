@@ -131,7 +131,7 @@ def process_fasta(df, path_to_fasta, decoy_prefix, decoy_infix=False):
 
 def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
     proteins_dict = dict()
-    for proteins, protein_descriptions, peptide, pep, ms1_i in df1_f2[['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity']].values:
+    for proteins, protein_descriptions, peptide, pep, ms1_i, q in df1_f2[['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity', 'q']].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):
             if prot not in proteins_dict:
                 proteins_dict[prot] = dict()
@@ -152,7 +152,7 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, d
                 proteins_dict[prot]['decoy2'] = prot in all_decoys_2
             proteins_dict[prot]['peptides set'].add(peptide)
             proteins_dict[prot]['TOP3'].append(ms1_i)
-            proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
+            proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), q)
             proteins_dict[prot]['PSMs'] += 1
 
     df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
@@ -345,6 +345,8 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
     df1['massdiff_int'] = df1['massdiff'].apply(lambda x: int(round(x, 0)))
     df1['massdiff_ppm'] = 1e6 * (df1['massdiff'] - df1['massdiff_int'] * 1.003354)/ df1['calc_neutral_pep_mass']
 
+    # df1['num_tol_term'] = df1['num_tol_term'].apply(lambda z: z[0])
+
     df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)
     if not np.sum(df1['decoy']):
         raise NoDecoyError()
@@ -356,6 +358,123 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
     elif ftype == 'msgf':
         df1['mods_counter'] = df1.apply(parse_mods_msgf, axis=1)
     df1 = prepare_mods(df1)
+
+    try:
+        df1['mb'] = df1['mb'].apply(lambda x: [z == 'True' for z in x[1:-1].split()])
+        df1['my'] = df1['my'].apply(lambda x: [z == 'True' for z in x[1:-1].split()])
+
+        df1_d = df1[df1['decoy2']]
+
+        cntb_L = dict()
+        cnty_L = dict()
+
+
+        def calc_prob_b(x):
+            mb = x['mb']
+            l = x['length']
+            pos = [(l-idx-1) for idx, zz in enumerate(mb) if zz]
+            prob = np.prod([cntb_L[l][pp] for pp in pos])
+            if prob == 0:
+                prob = 1e-20
+            return np.log10(prob)
+            
+        def calc_prob_y(x):
+            my = x['my']
+            l = x['length']
+            pos = [(l-idx-1) for idx, zz in enumerate(my) if zz]
+            prob = np.prod([cnty_L[l][pp] for pp in pos])
+            if prob == 0:
+                prob = 1e-20
+            return np.log10(prob)
+            
+        def calc_seq(x):
+            mb = x['mb']
+            my = x['my']
+            l = x['length']
+            basic_seq = [False] * l
+            pos = set([(l-idx-1) for idx, zz in enumerate(mb) if zz])
+            for pp in pos:
+                if pp - 1 == 0 or pp - 1 in pos:
+                    basic_seq[pp - 1] = True
+            pos = [(l-idx-1) for idx, zz in enumerate(my) if zz]
+            for pp in pos:
+                if pp - 1 == 0 or pp - 1 in pos:
+                    basic_seq[-pp] = True
+            return np.sum(basic_seq)
+        
+        for ll in set(df1_d['length']):
+            all_vals_y_decoy = []
+            all_vals_b_decoy = []
+            df1_tmp = df1_d[df1_d['length'] == ll]
+            for my, mb, l in df1_tmp[['my', 'mb', 'length']].values:
+                for idx, zz in enumerate(my):
+                    if zz:
+                        all_vals_y_decoy.append(float(l-idx-1))
+                for idx, zz in enumerate(mb):
+                    if zz:
+                        all_vals_b_decoy.append((l-idx-1))
+
+            cntb = Counter(all_vals_b_decoy)
+            if len(cntb):
+                cntb_min = min(cntb.values())
+                for ll in range(0, l+1, 1):
+                    if ll not in cntb:
+                        cntb[ll] = cntb_min
+                for k in cntb:
+                    cntb[k] = float(cntb[k]) / df1_tmp.shape[0]
+                cntb_L[ll] = cntb
+            cnty = Counter(all_vals_y_decoy)
+            if len(cnty):
+                cnty_min = min(cnty.values())
+                for ll in range(0, l+1, 1):
+                    if ll not in cnty:
+                        cnty[ll] = cnty_min
+                for k in cnty:
+                    cnty[k] = float(cnty[k]) / df1_tmp.shape[0]
+                cnty_L[ll] = cnty
+
+        for ll in sorted(set(df1['length'])):
+            if ll not in cntb_L:
+                ii = ll
+                while ii not in cntb_L:
+                    ii -= 1
+                cntb_L[ll] = cntb_L[ii]
+            if ll not in cnty_L:
+                ii = ll
+                while ii not in cnty_L:
+                    ii -= 1
+                cnty_L[ll] = cnty_L[ii]
+        # print(cnty_L)
+        df1['prob_b'] = df1.apply(calc_prob_b, axis=1)
+
+        df1['prob_y'] = df1.apply(calc_prob_y, axis=1)
+
+        df1['confirmed'] = df1.apply(calc_seq, axis=1)
+    except:
+        pass
+
+    
+
+    # df1['ion_pos_y_1'] = df1['my'].apply(lambda x: 1 if x[0] else 0)
+    # df1['ion_pos_y_2'] = df1['my'].apply(lambda x: 1 if x[1] else 0)
+    # df1['ion_pos_b_1'] = df1['mb'].apply(lambda x: 1 if x[0] else 0)
+    # df1['ion_pos_b_2'] = df1['mb'].apply(lambda x: 1 if x[1] else 0)
+    # df1['ion_pos_b_3'] = df1['mb'].apply(lambda x: 1 if x[2] else 0)
+    # df1['ion_pos_b_4'] = df1['mb'].apply(lambda x: 1 if x[3] else 0)
+    # for ii in range(6, 51, 1):
+    #     for dd in range(1, ii, 1):
+    #         df1['ion_pos_b_%d_%d' % (ii, dd)] = -1
+    #         df1['ion_pos_y_%d_%d' % (ii, dd)] = -1
+    
+
+# for my, mb, l in df1_d[['my', 'mb', 'L']].values:
+#     for idx, zz in enumerate(my):
+#         if zz:
+#             all_vals_y_decoy.append(float(l-idx-1))
+#     for idx, zz in enumerate(mb):
+#         if zz:
+#             all_vals_b_decoy.append((l-idx-1))
+
     # except:
     #     pass
     pep_ratio = np.sum(df1['decoy2'])/np.sum(df1['decoy'])
@@ -396,8 +515,8 @@ def get_features(dataframe):
                             'MeanRelErrorAll', 'MeanRelErrorTop7', 'NumMatchedMainIons', 'StdevErrorAll', \
                             'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio', \
                             'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio', 'fragmentMT', 'ISOWIDTHDIFF', \
-                            'MS1Intensity', 'sumI_to_MS1Intensity']:
-            if not feature.startswith('mass shift'):
+                            'MS1Intensity', 'sumI_to_MS1Intensity', 'num_tol_term', 'prob_b', 'prob_y', 'matched_y1_ions', 'matched_b1_ions', 'confirmed']:
+            if not feature.startswith('mass shift') and not feature.startswith('ion_pos_'):
                 columns_to_remove.append(feature)
     feature_columns = feature_columns.drop(columns_to_remove)
     return sorted(feature_columns)
@@ -411,6 +530,7 @@ def get_Y_array(df):
 def get_cat_model(df, feature_columns):
     print('Starting machine learning...')
     train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
+    print(feature_columns)
     x_train = get_X_array(train, feature_columns)
     y_train = get_Y_array(train)
     x_test = get_X_array(test, feature_columns)
@@ -422,6 +542,7 @@ def get_cat_model(df, feature_columns):
     model = CatBoostClassifier(iterations=2500, learning_rate=0.005, depth=10, loss_function='Logloss', eval_metric='Logloss',
                                od_type='Iter', od_wait=5, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
+    print(model.feature_importances_)
     print('Machine learning is finished...')
 
     return model

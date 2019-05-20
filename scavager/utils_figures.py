@@ -131,7 +131,8 @@ def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
 def calc_max_x_value(df, df_proteins):
     cnt = 7 # number of basic figures 
     peptide_columns = set(df.columns)
-    features_list = ['massdiff_ppm', 'RT diff', 'fragmentMT', 'num_missed_cleavages', 'assumed_charge', 'log_score', 'ISOWIDTHDIFF', 'MS1Intensity']
+    features_list = ['massdiff_ppm', 'RT diff', 'fragmentMT', 'num_missed_cleavages', 'assumed_charge', 'log_score', 'ISOWIDTHDIFF', 'MS1Intensity', 'num_tol_term',
+    'prob_b', 'prob_y']
     for feature in features_list:
         if feature in peptide_columns:
             cnt += 1
@@ -155,6 +156,12 @@ def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='num_missed_cleavages'), fig, subplot_max_x, subplot_start, xlabel='missed cleavages')
     subplot_start += 1
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='assumed_charge'), fig, subplot_max_x, subplot_start, xlabel='precursor charge')
+    subplot_start += 1
+    plot_hist_descriptor(get_descriptor_array(df, df_f, dname='num_tol_term'), fig, subplot_max_x, subplot_start, xlabel='num tol term')
+    subplot_start += 1
+    plot_hist_descriptor(get_descriptor_array(df, df_f, dname='prob_b'), fig, subplot_max_x, subplot_start, xlabel='prob_b')
+    subplot_start += 1
+    plot_hist_descriptor(get_descriptor_array(df, df_f, dname='prob_y'), fig, subplot_max_x, subplot_start, xlabel='prob_y')
     subplot_start += 1
     if 'fragmentMT' in df.columns:
         plot_hist_descriptor(get_descriptor_array(df, df_f, dname='fragmentMT'), fig, subplot_max_x, subplot_start, xlabel='median fragment error, Da')

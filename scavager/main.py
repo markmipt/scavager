@@ -70,7 +70,10 @@ def process_file(args):
         df_proteins = df_proteins[df_proteins.apply(lambda x: not x['decoy'] or x['decoy2'], axis=1)]
         df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=1)
         if df_proteins_f.shape[0] == 0:
+            # print('HEWRE')
+            # df_proteins_f = df_proteins.copy()
             df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2', reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=0)
+        print(df_proteins_f.shape, df_proteins.shape, df1_peptides_f.shape)
         df_proteins_f = get_protein_groups(df_proteins_f)
         output_path_proteins = path.join(outfolder, outbasename + '_proteins.tsv')
         df_proteins_f.to_csv(output_path_proteins, sep='\t', index=False, columns=get_columns_to_output(out_type='protein')) 
