@@ -2,7 +2,7 @@ from __future__ import division
 from .utils import NoDecoyError, WrongInputError, get_columns_to_output, calc_psms, \
 prepare_dataframe_xtandem, calc_PEP, get_output_basename, get_output_folder, \
 get_proteins_dataframe, get_protein_groups, convert_tandem_cleave_rule_to_regexp, \
-calc_qvals
+calc_qvals, is_group_specific
 from .utils_figures import plot_outfigures
 from pyteomics import auxiliary as aux
 import os.path
@@ -13,19 +13,18 @@ def process_file(args):
     outfolder = get_output_folder(args['o'], fname)
     outbasename = get_output_basename(fname)
     outfdr = args['fdr'] / 100
+    decoy_prefix = args['prefix']
+    decoy_infix = args['infix']
     sf = args['separate_figures']
     logging.info('Loading file %s...', os.path.basename(fname))
     if args['e']:
         cleavage_rule = convert_tandem_cleave_rule_to_regexp(args['e'])
     else:
         cleavage_rule = False
-    if args['allowed_peptides']:
-        allowed_peptides = set([pseq.strip().split()[0] for pseq in open(args['allowed_peptides'], 'r')])
-    else:
-        allowed_peptides = False
+
     try:
-        df1, all_decoys_2, num_psms_def = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'],
-            decoy_infix=args['infix'], cleavage_rule=cleavage_rule, fdr=outfdr)
+        df1, all_decoys_2, num_psms_def = prepare_dataframe_xtandem(fname, decoy_prefix=decoy_prefix,
+            decoy_infix=decoy_infix, cleavage_rule=cleavage_rule, fdr=outfdr)
     except NoDecoyError:
         logging.error('No decoys were found. Please check decoy_prefix/infix parameter or your search output.')
         return
@@ -33,10 +32,26 @@ def process_file(args):
         logging.error('Unsupported input file format. Use .pep.xml or .mzid files')
         return
 
+    if args['allowed_peptides']:
+        allowed_peptides = set([pseq.strip().split()[0] for pseq in open(args['allowed_peptides'], 'r')])
+    else:
+        allowed_peptides = False
+    if args['group_prefix']:
+        group_prefix = args['group_prefix']
+    else:
+        group_prefix = False
+    if group_prefix and allowed_peptides:
+        logging.error('Only one type of group filter can be used: allowed_peptides or group_prefix')
+        return
+
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
     df1 = calc_PEP(df1, pep_ratio=pep_ratio)
-    if allowed_peptides:
-        df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
+    if allowed_peptides or group_prefix:
+        if allowed_peptides:
+            df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
+        elif group_prefix:
+            df1 = df1[df1['protein'].apply(is_group_specific, group_prefix=group_prefix, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)]
+
         df1_f = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
         remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
         num_psms_def = df1_f[~df1_f['decoy2']].shape[0]

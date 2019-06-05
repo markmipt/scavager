@@ -34,6 +34,9 @@ def run():
     parser.add_argument('-allowed_peptides', help='Path to file with peptides considered in postsearch analysis.\
     Sequences must be separated by new line. For example, it can be variant peptides and its decoys in case \
     of proteogenomics searches for group-specific FDR calculation', default='')
+    parser.add_argument('-group_prefix', help='Protein prefix for group specific filtering. For example, if variant proteins\
+    startswith mut_ prefix, peptides belonged only to mut_ or DECOY_mut_ proteins will be reported. For example, it can useful in case \
+    of proteogenomics or splice variant searches for group-specific FDR calculation', default='')
     parser.add_argument('-sf', '--separate-figures', action='store_true', help='save figures as separate files')
     parser.add_argument('-version', action='version', version='%s' % (pkg_resources.require("scavager")[0], ))
     args = vars(parser.parse_args())

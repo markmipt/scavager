@@ -214,6 +214,12 @@ def is_decoy(proteins, decoy_prefix, decoy_infix=False):
     else:
         return all(decoy_infix in z for z in proteins)
 
+def is_group_specific(proteins, group_prefix, decoy_prefix, decoy_infix=False):
+    if not decoy_infix:
+        return all(z.startswith(decoy_prefix+group_prefix) or z.startswith(group_prefix) for z in proteins)
+    else:
+        return all(z.startswith(group_prefix) for z in proteins)
+
 
 def is_decoy_2(proteins, decoy_set):
     return all(z in decoy_set for z in proteins)
