@@ -6,10 +6,15 @@ setup.py file for Scavager
 from setuptools import setup
 version = open('VERSION').readline().strip()
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name             = 'Scavager',
     version          = version,
     description      = '''Proteomics post-search algorithm''',
+    long_description = long_description,
+    long_description_content_type = "text/markdown",
     author           = 'Mark Ivanov & Lev Levitsky & Julia Bubis',
     author_email     = 'pyteomics@googlegroups.com',
     url              = 'https://bitbucket.org/markmipt/scavager',

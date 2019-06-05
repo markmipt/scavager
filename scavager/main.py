@@ -48,9 +48,17 @@ def process_file(args):
     df1 = calc_PEP(df1, pep_ratio=pep_ratio)
     if allowed_peptides or group_prefix:
         if allowed_peptides:
+            prev_num = df1.shape[0]
             df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
         elif group_prefix:
+            prev_num = df1.shape[0]
             df1 = df1[df1['protein'].apply(is_group_specific, group_prefix=group_prefix, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)]
+
+        logging.info('%.1f%% of identifications were dropped during group-specific filtering' % (100 * float(prev_num - df1.shape[0]) / prev_num))
+
+        if df1[df1['decoy']].shape[0] == 0:
+            logging.warning('0 decoy identifications are presented in the group.\n Please check\
+            that allowed_peptides or group_prefix contains also decoy peptides and proteins!')
 
         df1_f = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
         remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
