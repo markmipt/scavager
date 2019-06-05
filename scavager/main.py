@@ -25,7 +25,7 @@ def process_file(args):
         allowed_peptides = False
     try:
         df1, all_decoys_2, num_psms_def = prepare_dataframe_xtandem(fname, decoy_prefix=args['prefix'],
-            decoy_infix=args['infix'], cleavage_rule=cleavage_rule, allowed_peptides=allowed_peptides, fdr=outfdr)
+            decoy_infix=args['infix'], cleavage_rule=cleavage_rule, fdr=outfdr)
     except NoDecoyError:
         logging.error('No decoys were found. Please check decoy_prefix/infix parameter or your search output.')
         return
@@ -35,6 +35,15 @@ def process_file(args):
 
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
     df1 = calc_PEP(df1, pep_ratio=pep_ratio)
+    if allowed_peptides:
+        df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
+        df1_f = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
+        remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+        num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
+        if num_psms_def == 0:
+            df1_f = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
+            remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
+            num_psms_def = df1_f[~df1_f['decoy2']].shape[0]           
 
     df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
         reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)

@@ -295,7 +295,7 @@ def prepare_mods(df):
         df[mod] = df.apply(add_mod_info, axis=1, mod=mod)
     return df
 
-def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False, allowed_peptides=False, fdr=0.01):
+def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False, fdr=0.01):
     if not cleavage_rule:
         cleavage_rule = parser.expasy_rules['trypsin']
     if infile_path.lower().endswith('.pep.xml') or infile_path.lower().endswith('.pepxml'):
@@ -327,8 +327,6 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
     df1 = df1[~pd.isna(df1['peptide'])]
     if 'MS1Intensity' not in df1:
         df1['MS1Intensity'] = 0.0
-    if allowed_peptides:
-        df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
     df1['length'] = df1['peptide'].apply(len)
     df1 = df1[df1['length'] >= 6]
     df1['spectrum'] = df1['spectrum'].apply(lambda x: x.split(' RTINS')[0])
