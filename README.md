@@ -23,6 +23,10 @@ The output of Scavager contains:
 
     png figure with PSM, peptide and protein features distributions
 
+Citing Scavager
+-----
+Ivanov et al. Scavager: A Versatile Postsearch Validation Algorithm for Shotgun Proteomics Based on Gradient Boosting. doi: 10.1002/pmic.201800280
+
 Installation
 -----
 Using the pip:
