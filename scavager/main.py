@@ -8,6 +8,14 @@ from pyteomics import auxiliary as aux
 import os.path
 import logging
 
+def process_files(args):
+    files = args['file']
+    logging.info('%d file(s) to process.', len(files))
+    cargs = args.copy()
+    for f in files:
+        cargs['file'] = f
+        process_file(cargs)
+
 def process_file(args):
     fname = args['file']
     outfolder = get_output_folder(args['o'], fname)
@@ -66,7 +74,7 @@ def process_file(args):
         if num_psms_def == 0:
             df1_f = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
             remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
-            num_psms_def = df1_f[~df1_f['decoy2']].shape[0]           
+            num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
 
     df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
         reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
