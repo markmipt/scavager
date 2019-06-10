@@ -224,6 +224,17 @@ def is_group_specific(proteins, group_prefix, decoy_prefix, decoy_infix=False):
 def is_decoy_2(proteins, decoy_set):
     return all(z in decoy_set for z in proteins)
 
+def split_fasta_decoys(db, decoy_prefix, decoy_infix=None):
+    decoy_dbnames = []
+    with fasta.read(db) as f:
+        for protein in f:
+            dbname = protein.description.split()[0]
+            if (decoy_infix and decoy_infix in dbname) or dbname.startswith(decoy_prefix):
+                decoy_dbnames.append(dbname)
+    random.seed(SEED)
+    all_decoys_2 = set(random.sample(decoy_dbnames, len(decoy_dbnames) // 2))
+    return all_decoys_2
+
 def split_decoys(df, decoy_prefix, decoy_infix=False):
     all_decoys = set()
     for proteins in df[['protein']].values:
@@ -301,7 +312,7 @@ def prepare_mods(df):
         df[mod] = df.apply(add_mod_info, axis=1, mod=mod)
     return df
 
-def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False, fdr=0.01):
+def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False, fdr=0.01, decoy2set=None):
     if not cleavage_rule:
         cleavage_rule = parser.expasy_rules['trypsin']
     if infile_path.lower().endswith('.pep.xml') or infile_path.lower().endswith('.pepxml'):
@@ -352,7 +363,11 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
     df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)
     if not np.sum(df1['decoy']):
         raise NoDecoyError()
-    df1, all_decoys_2 = split_decoys(df1, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)
+    if decoy2set is None:
+        df1, decoy2set = split_decoys(df1, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)
+    else:
+        df1['decoy2'] = df1['protein'].apply(lambda p: all(x in decoy2set for x in p))
+        df1['decoy1'] = df1['decoy'] & (~df1['decoy2'])
     df1 = remove_column_hit_rank(df1)
 
     if ftype == 'pepxml':
@@ -385,7 +400,7 @@ def prepare_dataframe_xtandem(infile_path, decoy_prefix='DECOY_', decoy_infix=Fa
         logging.warning('Retention times are probably missing in input file.')
         df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, achrom.RCs_krokhin_100A_tfa))
         df1['RT diff'] = df1['RT exp']
-    return df1, all_decoys_2, num_psms_def
+    return df1, decoy2set, num_psms_def
 
 def get_features(dataframe):
     feature_columns = dataframe.columns
