@@ -205,7 +205,7 @@ def get_output_folder(outfolder, fname):
 def calc_RT(seq, RC):
     try:
         return achrom.calculate_RT(seq, RC)
-    except:
+    except Exception:
         return 0
 
 def is_decoy(proteins, decoy_prefix, decoy_infix=False):
@@ -219,7 +219,6 @@ def is_group_specific(proteins, group_prefix, decoy_prefix, decoy_infix=False):
         return all(z.startswith(decoy_prefix+group_prefix) or z.startswith(group_prefix) for z in proteins)
     else:
         return all(z.startswith(group_prefix) for z in proteins)
-
 
 def is_decoy_2(proteins, decoy_set):
     return all(z in decoy_set for z in proteins)

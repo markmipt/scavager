@@ -22,9 +22,112 @@ def process_files(args):
     for f in files:
         cargs['file'] = f
         process_file(cargs, decoy2=decoy_prots_2)
-    if args['union']:
+    if args['union'] and len(files) > 1:
         logging.info('Starting the union calculation...')
         logging.warning('Union calculation is not implemented yet.')
+
+
+def filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, decoy_prefix, decoy_infix):
+    pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
+    df1 = utils.calc_PEP(df1, pep_ratio=pep_ratio)
+    if allowed_peptides or group_prefix:
+        prev_num = df1.shape[0]
+        if allowed_peptides:
+            df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
+        elif group_prefix:
+            df1 = df1[df1['protein'].apply(utils.is_group_specific, group_prefix=group_prefix, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)]
+
+        logging.info('%.1f%% of identifications were dropped during group-specific filtering.', (100 * float(prev_num - df1.shape[0]) / prev_num))
+
+        if df1[df1['decoy']].shape[0] == 0:
+            logging.warning('0 decoy identifications are present in the group.\n Please check\
+            that allowed_peptides or group_prefix contains also decoy peptides and proteins!')
+
+        df1_f = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
+        remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+        num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
+        if num_psms_def == 0:
+            df1_f = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
+            remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
+            num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
+
+    df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
+        reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+    if df1_f2.shape[0] == 0:
+        df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
+            reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
+
+    if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
+        logging.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
+        logging.warning('Using only default search scores for machine learning...')
+        df1 = utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
+        df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
+            reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+
+    return df1, df1_f2
+
+
+def build_output_tables(df1, df1_f2, decoy2, args):
+    if args['database']:
+        path_to_fasta = os.path.abspath(args['database'])
+    else:
+        path_to_fasta = None
+    outfdr = args['fdr'] / 100
+    pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
+
+    df1 = utils.calc_qvals(df1, ratio=pep_ratio)
+
+    if df1_f2.shape[0]:
+        df1 = utils.calc_psms(df1)
+        df1_peptides = df1.sort_values('ML score', ascending=True).drop_duplicates(['peptide'])
+        df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
+            key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+        if df1_peptides_f.shape[0] == 0:
+            df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
+                key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
+
+        df_proteins = utils.get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'],
+            decoy_infix=args['infix'], all_decoys_2=decoy2, path_to_fasta=path_to_fasta)
+        prot_ratio = 0.5
+        df_proteins = df_proteins[df_proteins.apply(lambda x: not x['decoy'] or x['decoy2'], axis=1)]
+        df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
+            reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=1)
+        if df_proteins_f.shape[0] == 0:
+            df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
+                reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=0)
+        df_proteins_f = utils.get_protein_groups(df_proteins_f)
+        df_protein_groups = df_proteins_f[df_proteins_f['groupleader']]
+
+        logging.info('Final results at %s%% FDR level:', args['fdr'])
+        logging.info('Identified PSMs: %s', df1_f2[~df1_f2['decoy2']].shape[0])
+        logging.info('Identified peptides: %s', df1_peptides_f[~df1_peptides_f['decoy2']].shape[0])
+        logging.info('Identified proteins: %s', df_proteins_f.shape[0])
+        logging.info('Identified protein groups: %s', df_protein_groups.shape[0])
+        logging.info('The search is finished.')
+
+        return df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups
+    else:
+        logging.error('PSMs cannot be filtered at %s%% FDR. Please increase allowed FDR.', args['fdr'])
+        return (None,) * 5
+
+
+def write_tables(fname, outfolder, outbasename, df1, df1_f2, df1_peptides_f, df_proteins_f, df_protein_groups):
+    output_path_psms = os.path.join(outfolder, outbasename + '_PSMs.tsv')
+    output_path_psms_full = os.path.join(outfolder, outbasename + '_PSMs_full.tsv')
+    output_path_peptides = os.path.join(outfolder, outbasename + '_peptides.tsv')
+    output_path_proteins = os.path.join(outfolder, outbasename + '_proteins.tsv')
+    output_path_protein_groups = os.path.join(outfolder, outbasename + '_protein_groups.tsv')
+
+    df1.to_csv(output_path_psms_full, sep='\t', index=False, columns=utils.get_columns_to_output(out_type='psm_full'))
+    df1_f2[~df1_f2['decoy2']].to_csv(output_path_psms, sep='\t', index=False, columns=utils.get_columns_to_output(out_type='psm'))
+    df1_peptides_f[~df1_peptides_f['decoy2']].to_csv(output_path_peptides, sep='\t', index=False,
+            columns=utils.get_columns_to_output(out_type='peptide'))
+
+    df_proteins_f.to_csv(output_path_proteins, sep='\t', index=False,
+            columns=utils.get_columns_to_output(out_type='protein'))
+    df_protein_groups.to_csv(output_path_protein_groups, sep='\t', index=False,
+            columns=utils.get_columns_to_output(out_type='protein'))
+
 
 def process_file(args, decoy2=None):
     fname = args['file']
@@ -62,94 +165,14 @@ def process_file(args, decoy2=None):
         logging.error('Only one type of group filter can be used: --allowed-peptides or --group-prefix.')
         return
 
-    pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
-    df1 = utils.calc_PEP(df1, pep_ratio=pep_ratio)
-    if allowed_peptides or group_prefix:
-        prev_num = df1.shape[0]
-        if allowed_peptides:
-            df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
-        elif group_prefix:
-            df1 = df1[df1['protein'].apply(utils.is_group_specific, group_prefix=group_prefix, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)]
+    df1, df1_f2 = filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, decoy_prefix, decoy_infix)
 
-        logging.info('%.1f%% of identifications were dropped during group-specific filtering.', (100 * float(prev_num - df1.shape[0]) / prev_num))
+    df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups = build_output_tables(df1, df1_f2, all_decoys_2, args)
+    if df1_peptides is None:
+        return
 
-        if df1[df1['decoy']].shape[0] == 0:
-            logging.warning('0 decoy identifications are present in the group.\n Please check\
-            that allowed_peptides or group_prefix contains also decoy peptides and proteins!')
+    write_tables(fname, outfolder, outbasename, df1, df1_f2, df1_peptides_f, df_proteins_f, df_protein_groups)
 
-        df1_f = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
-        remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
-        num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
-        if num_psms_def == 0:
-            df1_f = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
-            remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
-            num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
-
-    df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
-        reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
-    if df1_f2.shape[0] == 0:
-        df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
-            reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
-
-    if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
-        logging.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
-        logging.warning('Using only default search scores for machine learning...')
-        df1 = utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
-        df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
-            reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
-
-
-    output_path_psms_full = os.path.join(outfolder, outbasename + '_PSMs_full.tsv')
-    df1 = utils.calc_qvals(df1, ratio=pep_ratio)
-    df1.to_csv(output_path_psms_full, sep='\t', index=False, columns=utils.get_columns_to_output(out_type='psm_full'))
-    if df1_f2.shape[0] > 0:
-        output_path_psms = os.path.join(outfolder, outbasename + '_PSMs.tsv')
-        df1_f2[~df1_f2['decoy2']].to_csv(output_path_psms, sep='\t', index=False, columns=utils.get_columns_to_output(out_type='psm'))
-
-        df1 = utils.calc_psms(df1)
-        df1_peptides = df1.sort_values('ML score', ascending=True).drop_duplicates(['peptide'])
-        df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
-            key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
-        if df1_peptides_f.shape[0] == 0:
-            df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
-                key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
-        output_path_peptides = os.path.join(outfolder, outbasename + '_peptides.tsv')
-        df1_peptides_f[~df1_peptides_f['decoy2']].to_csv(output_path_peptides, sep='\t', index=False,
-            columns=utils.get_columns_to_output(out_type='peptide'))
-
-        if args['database']:
-            path_to_fasta = os.path.abspath(args['database'])
-        else:
-            path_to_fasta = None
-        df_proteins = utils.get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'],
-            decoy_infix=args['infix'], all_decoys_2=all_decoys_2, path_to_fasta=path_to_fasta)
-        prot_ratio = 0.5
-        df_proteins = df_proteins[df_proteins.apply(lambda x: not x['decoy'] or x['decoy2'], axis=1)]
-        df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
-            reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=1)
-        if df_proteins_f.shape[0] == 0:
-            df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
-                reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=0)
-        df_proteins_f = utils.get_protein_groups(df_proteins_f)
-        output_path_proteins = os.path.join(outfolder, outbasename + '_proteins.tsv')
-        df_proteins_f.to_csv(output_path_proteins, sep='\t', index=False,
-            columns=utils.get_columns_to_output(out_type='protein'))
-
-        df_protein_groups = df_proteins_f[df_proteins_f['groupleader']]
-        output_path_protein_groups = os.path.join(outfolder, outbasename + '_protein_groups.tsv')
-        df_protein_groups.to_csv(output_path_protein_groups, sep='\t', index=False,
-            columns=utils.get_columns_to_output(out_type='protein'))
-
-        plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']],
+    plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']],
             outfolder, outbasename, df_proteins=df_proteins, df_proteins_f=df_proteins_f[~df_proteins_f['decoy2']],
             separate_figures=sf)
-
-        logging.info('Final results at %s%% FDR level:', args['fdr'])
-        logging.info('Identified PSMs: %s', df1_f2[~df1_f2['decoy2']].shape[0])
-        logging.info('Identified peptides: %s', df1_peptides_f[~df1_peptides_f['decoy2']].shape[0])
-        logging.info('Identified proteins: %s', df_proteins_f.shape[0])
-        logging.info('Identified protein groups: %s', df_protein_groups.shape[0])
-        logging.info('The search is finished.')
-
-    else:
-        logging.error('PSMs cannot be filtered at %s%% FDR. Please increase allowed FDR.', args['fdr'])
