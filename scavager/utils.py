@@ -423,9 +423,22 @@ def get_cat_model(df, feature_columns):
     # model = CatBoostClassifier(iterations=1000, learning_rate=0.05, depth=10, loss_function='Logloss', logging_level='Silent', random_seed=SEED)
     # model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
 
-    model = CatBoostClassifier(iterations=2500, learning_rate=0.005, depth=10, loss_function='Logloss', eval_metric='Logloss',
-                               od_type='Iter', od_wait=5, random_state=SEED, logging_level='Silent')
+    model = CatBoostClassifier(iterations=5000, learning_rate=0.01, depth=8, loss_function='Logloss', eval_metric='Logloss',
+                               od_type='Iter', od_wait=3, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
+    best_iter = model.best_iteration_
+    logging.info('Best iteration:%d' % (best_iter, ))
+    ln_rt = round(0.01 * best_iter / 1000, 3)
+    model = CatBoostClassifier(iterations=5000, learning_rate=ln_rt, depth=8, loss_function='Logloss', eval_metric='Logloss',
+                               od_type='Iter', od_wait=3, random_state=SEED, logging_level='Silent')
+    model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
+    best_iter = model.best_iteration_
+    logging.info('Best iteration:%d' % (best_iter, ))
+    X = get_X_array(df, feature_columns)
+    y = get_Y_array(df)
+    model = CatBoostClassifier(iterations=best_iter, learning_rate=0.01, depth=8, loss_function='Logloss', random_state=SEED, logging_level='Silent')
+    model.fit(X, y)
+
     logging.info('Machine learning is finished...')
 
     return model
