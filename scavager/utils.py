@@ -6,7 +6,7 @@ import random
 SEED = 42
 from catboost import CatBoostClassifier
 from sklearn.model_selection import train_test_split
-from os import path, mkdir
+import os
 from collections import Counter, defaultdict
 from .utils_figures import get_fdbinsize
 from scipy.stats import scoreatpercentile
@@ -68,7 +68,6 @@ def convert_tandem_cleave_rule_to_regexp(cleavage_rule):
 
 def calc_TOP3(df):
     df['TOP3'] = df['TOP3'].apply(lambda z: sum(sorted(z, reverse=True)[:3]))
-    return df
 
 def calc_NSAF(df):
     df['NSAF'] = df['PSMs'] / df['length']
@@ -77,7 +76,6 @@ def calc_NSAF(df):
     if sum(pd.notna(df['NSAF'])):
         df['LOG10_NSAF'] = np.log10(df['NSAF'])
     df.loc[pd.isna(df['NSAF']), 'NSAF'] = 0.0
-    return df
 
 def keywithmaxval(d):
     #this method is much faster than using max(prots.iterkeys(), key=(lambda key: prots[key]))
@@ -85,7 +83,7 @@ def keywithmaxval(d):
     k = list(d.keys())
     return k[v.index(max(v))]
 
-def get_protein_groups(df):
+def add_protein_groups(df):
     pept_prots = defaultdict(set)
     prot_prots = defaultdict(set)
     prot_pepts = dict()
@@ -109,7 +107,6 @@ def get_protein_groups(df):
             del pept_prots[pep]
     df['groupleader'] = df['dbname'].apply(lambda x: x in tostay)
     df['all proteins'] = df['dbname'].apply(lambda x: ';'.join(prot_prots[x]))
-    return df
 
 
 def process_fasta(df, path_to_fasta, decoy_prefix, decoy_infix=False):
@@ -124,9 +121,15 @@ def process_fasta(df, path_to_fasta, decoy_prefix, decoy_infix=False):
     df['sequence'] = df['dbname'].apply(lambda x: protsS.get(x, protsS.get(x.split(' ')[0], '')))
     if not decoy_check_flag:
         if not decoy_infix:
-            df['sequence'] = df.apply(lambda x: x['sequence'] if x['sequence'] else protsS.get(x['dbname'].replace(decoy_prefix, ''), protsS.get(x['dbname'].split(' ')[0].replace(decoy_prefix, ''), '')), axis=1)
+            df['sequence'] = df.apply(
+                lambda x: x['sequence'] if x['sequence'] else protsS.get(
+                    x['dbname'].replace(decoy_prefix, ''), protsS.get(x['dbname'].split(' ')[0].replace(decoy_prefix, ''), '')),
+                axis=1)
         else:
-            df['sequence'] = df.apply(lambda x: x['sequence'] if x['sequence'] else protsS.get(x['dbname'].replace(decoy_infix, ''), protsS.get(x['dbname'].split(' ')[0].replace(decoy_infix, ''), '')), axis=1)
+            df['sequence'] = df.apply(
+                lambda x: x['sequence'] if x['sequence'] else protsS.get(
+                    x['dbname'].replace(decoy_infix, ''), protsS.get(x['dbname'].split(' ')[0].replace(decoy_infix, ''), '')),
+                axis=1)
 
     return df
 
@@ -163,8 +166,8 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, d
     df_proteins['sq'] = df_proteins.apply(calc_sq, axis=1)
     df_proteins['peptides'] = df_proteins['peptides set'].apply(len)
     df_proteins['PSMs'] = df_proteins.apply(lambda x: max(x['PSMs'], x['peptides']), axis=1)#df_proteins.loc[:, ['PSMs', 'peptides']].max(axis=1)
-    df_proteins = calc_NSAF(df_proteins)
-    df_proteins = calc_TOP3(df_proteins)
+    calc_NSAF(df_proteins)
+    calc_TOP3(df_proteins)
     df_proteins['score'] = df_proteins['score'].apply(lambda x: np.prod(list(x.values())))
     return df_proteins
 
@@ -186,20 +189,20 @@ def calc_sq(df_raw):
     return float(sum(psq)) / len(psq) * 100
 
 def get_output_basename(fname):
-    basename = path.basename(fname)
-    splt = path.splitext(basename)
+    basename = os.path.basename(fname)
+    splt = os.path.splitext(basename)
     basename = splt[0]
     if 'pep' not in splt[1].lower():
-        basename = path.splitext(basename)[0]
+        basename = os.path.splitext(basename)[0]
     return basename
 
 def get_output_folder(outfolder, fname):
     if not outfolder:
-        return path.dirname(path.realpath(fname))
+        return os.path.dirname(os.path.realpath(fname))
     else:
-        tmp_outfolder = path.join(path.dirname(path.realpath(fname)), outfolder)
-        if not path.isdir(tmp_outfolder):
-            mkdir(tmp_outfolder)
+        tmp_outfolder = os.path.join(os.path.dirname(os.path.realpath(fname)), outfolder)
+        if not os.path.isdir(tmp_outfolder):
+            os.mkdir(tmp_outfolder)
         return tmp_outfolder
 
 def calc_RT(seq, RC):
@@ -309,7 +312,6 @@ def prepare_mods(df):
             all_mods.add(k)
     for mod in all_mods:
         df[mod] = df.apply(add_mod_info, axis=1, mod=mod)
-    return df
 
 def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False, fdr=0.01, decoy2set=None):
     if not cleavage_rule:
@@ -373,7 +375,7 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         df1['mods_counter'] = df1.apply(parse_mods, axis=1)
     elif ftype == 'msgf':
         df1['mods_counter'] = df1.apply(parse_mods_msgf, axis=1)
-    df1 = prepare_mods(df1)
+    prepare_mods(df1)
 
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
     df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False,
@@ -426,6 +428,27 @@ def get_X_array(df, feature_columns):
 def get_Y_array(df):
     return df.loc[:, 'decoy1'].values.astype(float)
 
+def variant_peptides(allowed_peptides, group_prefix):
+    if allowed_peptides:
+        with open(allowed_peptides) as f:
+            allowed_peptides = set(pseq.strip().split()[0] for pseq in f)
+    else:
+        allowed_peptides = None
+
+    if group_prefix and allowed_peptides:
+        raise ValueError('Only one type of group filter can be used: --allowed-peptides or --group-prefix.')
+    return allowed_peptides, group_prefix
+
+def filename(outfolder, outbasename, ftype):
+    type_suffix = {
+        'psm_full': '_PSMs_full.tsv',
+        'psm': '_PSMs.tsv',
+        'peptide': '_peptides.tsv',
+        'protein': '_proteins.tsv',
+        'protein_group': '_protein_groups.tsv'
+    }
+    return os.path.join(outfolder, outbasename + type_suffix[ftype])
+
 def get_cat_model(df, feature_columns):
     logging.info('Starting machine learning...')
     train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
@@ -441,19 +464,19 @@ def get_cat_model(df, feature_columns):
                                od_type='Iter', od_wait=3, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     best_iter = model.best_iteration_
-    logging.info('Best iteration:%d' % (best_iter, ))
+    logging.debug('Best iteration: %d', best_iter)
     ln_rt = round(0.01 * best_iter / 1000, 3)
     model = CatBoostClassifier(iterations=5000, learning_rate=ln_rt, depth=8, loss_function='Logloss', eval_metric='Logloss',
                                od_type='Iter', od_wait=3, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     best_iter = model.best_iteration_
-    logging.info('Best iteration:%d' % (best_iter, ))
+    logging.debug('Best iteration: %d', best_iter)
     X = get_X_array(df, feature_columns)
     y = get_Y_array(df)
     model = CatBoostClassifier(iterations=best_iter, learning_rate=0.01, depth=8, loss_function='Logloss', random_state=SEED, logging_level='Silent')
     model.fit(X, y)
 
-    logging.info('Machine learning is finished...')
+    logging.info('Machine learning is finished.')
 
     return model
 
@@ -497,13 +520,11 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
 
     pep_min = df['ML score'].min()
     df['log_score'] = np.log10(df['ML score'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
-    return df
 
 def calc_qvals(df, ratio):
-    df_t = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2', remove_decoy=False, formula=1, full_output=True, ratio=ratio)
+    df_t = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2', remove_decoy=False, formula=1, ratio=ratio)
     df.loc[~df['decoy1'], 'q'] = df_t['q']
     df.loc[df['decoy1'], 'q'] = -1
-    return df
 
 def get_columns_to_output(out_type):
     if out_type == 'psm_full':
@@ -524,4 +545,3 @@ def get_columns_to_output(out_type):
 def calc_psms(df):
     peptides = Counter(df['peptide'])
     df['#PSMs'] = df['peptide'].apply(lambda x: peptides.get(x))
-    return df
