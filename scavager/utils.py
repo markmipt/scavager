@@ -526,21 +526,22 @@ def calc_qvals(df, ratio):
     df.loc[~df['decoy1'], 'q'] = df_t['q']
     df.loc[df['decoy1'], 'q'] = -1
 
-def get_columns_to_output(out_type):
-    if out_type == 'psm_full':
-        return ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2', 'PEP',\
-         'MS1Intensity', 'ISOWIDTHDIFF']
-    elif out_type == 'psm':
-        return ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP',\
-         'MS1Intensity', 'ISOWIDTHDIFF']
-    elif out_type == 'peptide':
-        return ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP',\
-         'MS1Intensity', 'ISOWIDTHDIFF']
-    elif out_type == 'protein':
-        return ['dbname','description','PSMs','peptides','NSAF','TOP3','sq','score','length', 'all proteins', 'groupleader']
+_columns_to_output = {
+    'psm_full': {'peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2', 'PEP',
+         'MS1Intensity', 'ISOWIDTHDIFF'},
+    'psm': {'peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP',
+         'MS1Intensity', 'ISOWIDTHDIFF'},
+    'peptide': {'peptide', '#PSMs', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP',
+         'MS1Intensity', 'ISOWIDTHDIFF'},
+    'protein': {'dbname','description','PSMs','peptides','NSAF','TOP3','sq','score','length', 'all proteins', 'groupleader'},
+    }
+
+def get_columns_to_output(columns, out_type):
+    labels = _columns_to_output[out_type]
+    return list(labels.intersection(columns))
 
 def calc_psms(df):
     peptides = Counter(df['peptide'])

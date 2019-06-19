@@ -4,6 +4,7 @@ from .utils_figures import plot_outfigures
 from pyteomics import auxiliary as aux
 import os.path
 import logging
+import ast
 import pandas as pd
 
 def process_files(args):
@@ -33,14 +34,17 @@ def process_files(args):
             outbasename = utils.get_output_basename(file)
             csvname = utils.filename(outfolder, outbasename, 'psm_full')
             try:
-                psm_full_dfs.append(pd.read_csv(csvname, sep='\t'))
+                df = pd.read_csv(csvname, sep='\t')
+                for key in ['protein', 'peptide_next_aa', 'peptide_prev_aa', 'num_tol_term', 'protein_descr', 'modifications']:
+                    df[key] = df[key].apply(ast.literal_eval)
+                psm_full_dfs.append(df)
             except FileNotFoundError:
                 logging.warning('File %s not found, skipping...', csvname)
         all_psms = pd.concat(psm_full_dfs)
         allowed_peptides, group_prefix = utils.variant_peptides(args['allowed_peptides'], args['group_prefix'])
         num_psms_def = 0
         all_psms, all_psms_f2 = filter_dataframe(all_psms,
-            args['fdr'], num_psms_def, allowed_peptides, group_prefix, args['decoy_prefix'], args['decoy_infix'])
+            args['fdr'] / 100., num_psms_def, allowed_peptides, group_prefix, args['prefix'], args['infix'])
 
         peptides, peptides_f, proteins, proteins_f, protein_groups = build_output_tables(all_psms, all_psms_f2, decoy_prots_2, args)
         if peptides is None:
@@ -142,16 +146,16 @@ def build_output_tables(df1, df1_f2, decoy2, args):
 
 def write_tables(outfolder, outbasename, df1, df1_f2, df1_peptides_f, df_proteins_f, df_protein_groups):
     df1.to_csv(utils.filename(outfolder, outbasename, 'psm_full'),
-        sep='\t', index=False, columns=utils.get_columns_to_output(out_type='psm_full'))
+        sep='\t', index=False, columns=utils.get_columns_to_output(df1.columns, 'psm_full'))
     df1_f2[~df1_f2['decoy2']].to_csv(utils.filename(outfolder, outbasename, 'psm'),
-        sep='\t', index=False, columns=utils.get_columns_to_output(out_type='psm'))
+        sep='\t', index=False, columns=utils.get_columns_to_output(df1_f2.columns, 'psm'))
     df1_peptides_f[~df1_peptides_f['decoy2']].to_csv(utils.filename(outfolder, outbasename, 'peptide'),
-        sep='\t', index=False, columns=utils.get_columns_to_output(out_type='peptide'))
+        sep='\t', index=False, columns=utils.get_columns_to_output(df1_peptides_f.columns, 'peptide'))
 
     df_proteins_f.to_csv(utils.filename(outfolder, outbasename, 'protein'), sep='\t', index=False,
-            columns=utils.get_columns_to_output(out_type='protein'))
+            columns=utils.get_columns_to_output(df_proteins_f.columns, 'protein'))
     df_protein_groups.to_csv(utils.filename(outfolder, outbasename, 'protein_group'), sep='\t', index=False,
-            columns=utils.get_columns_to_output(out_type='protein'))
+            columns=utils.get_columns_to_output(df_protein_groups.columns, 'protein'))
 
 
 def process_file(args, decoy2=None):
