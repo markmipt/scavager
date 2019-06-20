@@ -133,7 +133,7 @@ def process_fasta(df, path_to_fasta, decoy_prefix, decoy_infix=False):
 
     return df
 
-def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
+def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
     proteins_dict = dict()
     for proteins, protein_descriptions, peptide, pep, ms1_i in df1_f2[['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity']].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):
@@ -154,6 +154,7 @@ def get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix, all_decoys_2, d
                 else:
                     proteins_dict[prot]['decoy'] = decoy_infix in prot
                 proteins_dict[prot]['decoy2'] = prot in all_decoys_2
+                proteins_dict[prot]['decoy1'] = proteins_dict[prot]['decoy'] and not proteins_dict[prot]['decoy2']
             proteins_dict[prot]['peptides set'].add(peptide)
             proteins_dict[prot]['TOP3'].append(ms1_i)
             proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
@@ -527,21 +528,25 @@ def calc_qvals(df, ratio):
     df.loc[df['decoy1'], 'q'] = -1
 
 _columns_to_output = {
-    'psm_full': {'peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2', 'PEP',
-         'MS1Intensity', 'ISOWIDTHDIFF'},
-    'psm': {'peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+    'psm_full': ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'RT diff', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2', 'PEP',
+         'MS1Intensity', 'ISOWIDTHDIFF'],
+    'psm': ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP',
-         'MS1Intensity', 'ISOWIDTHDIFF'},
-    'peptide': {'peptide', '#PSMs', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+         'MS1Intensity', 'ISOWIDTHDIFF'],
+    'peptide': ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP',
-         'MS1Intensity', 'ISOWIDTHDIFF'},
-    'protein': {'dbname','description','PSMs','peptides','NSAF','TOP3','sq','score','length', 'all proteins', 'groupleader'},
+         'MS1Intensity', 'ISOWIDTHDIFF'],
+    'protein': ['dbname','description','PSMs','peptides','NSAF','TOP3','sq','score','length', 'all proteins', 'groupleader'],
     }
 
 def get_columns_to_output(columns, out_type):
-    labels = _columns_to_output[out_type]
-    return list(labels.intersection(columns))
+    present = set(columns)
+    order = _columns_to_output[out_type]
+    labels = [label for label in order if label in present]
+    if out_type == 'psm_full':
+        labels.extend(present.difference(order))
+    return labels
 
 def calc_psms(df):
     peptides = Counter(df['peptide'])

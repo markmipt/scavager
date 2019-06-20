@@ -41,15 +41,14 @@ def process_files(args):
             except FileNotFoundError:
                 logging.warning('File %s not found, skipping...', csvname)
         all_psms = pd.concat(psm_full_dfs)
-        allowed_peptides, group_prefix = utils.variant_peptides(args['allowed_peptides'], args['group_prefix'])
-        num_psms_def = 0
-        all_psms, all_psms_f2 = filter_dataframe(all_psms,
-            args['fdr'] / 100., num_psms_def, allowed_peptides, group_prefix, args['prefix'], args['infix'])
+        all_psms_f2 = all_psms[(~all_psms['decoy1']) & (all_psms['q'] < args['fdr'] / 100)]
 
-        peptides, peptides_f, proteins, proteins_f, protein_groups = build_output_tables(all_psms, all_psms_f2, decoy_prots_2, args)
+        peptides, peptides_f, proteins, proteins_f, protein_groups = build_output_tables(all_psms, all_psms_f2, decoy_prots_2, args, 'PEP')
         if peptides is None:
             logging.warning('No peptides identified in union.')
             return 0
+
+        logging.debug('Protein FDR in full table: %f%%', 100*aux.fdr(proteins, is_decoy='decoy2'))
 
         write_tables(outfolder, 'union', all_psms, all_psms_f2, peptides_f, proteins_f, protein_groups)
 
@@ -100,7 +99,7 @@ def filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, 
     return df1, df1_f2
 
 
-def build_output_tables(df1, df1_f2, decoy2, args):
+def build_output_tables(df1, df1_f2, decoy2, args, key='ML score'):
     if args['database']:
         path_to_fasta = os.path.abspath(args['database'])
     else:
@@ -112,17 +111,17 @@ def build_output_tables(df1, df1_f2, decoy2, args):
 
     if df1_f2.shape[0]:
         utils.calc_psms(df1)
-        df1_peptides = df1.sort_values('ML score', ascending=True).drop_duplicates(['peptide'])
+        df1_peptides = df1.sort_values(key, ascending=True).drop_duplicates(['peptide'])
         df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
-            key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+            key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
         if df1_peptides_f.shape[0] == 0:
             df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
-                key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
+                key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
 
-        df_proteins = utils.get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'],
+        df_proteins = utils.get_proteins_dataframe(df1_f2, decoy_prefix=args['prefix'],
             decoy_infix=args['infix'], all_decoys_2=decoy2, path_to_fasta=path_to_fasta)
         prot_ratio = 0.5
-        df_proteins = df_proteins[df_proteins.apply(lambda x: not x['decoy'] or x['decoy2'], axis=1)]
+        df_proteins = df_proteins[~df_proteins['decoy1']]
         df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
             reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=1)
         if df_proteins_f.shape[0] == 0:
