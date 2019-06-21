@@ -4,6 +4,8 @@ from .utils_figures import plot_outfigures
 from pyteomics import auxiliary as aux
 import os.path
 import logging
+import ast
+import pandas as pd
 
 def process_files(args):
     files = args['file']
@@ -21,49 +23,45 @@ def process_files(args):
         logging.info('Database file not provided. Decoy randomization will be done per PSM file.')
     for f in files:
         cargs['file'] = f
-        process_file(cargs, decoy2=decoy_prots_2)
-    if args['union']:
+        if process_file(cargs, decoy2=decoy_prots_2) == -1:
+            logging.info('Stopping due to previous errors.')
+            return
+    if args['union'] and len(files) > 1:
         logging.info('Starting the union calculation...')
-        logging.warning('Union calculation is not implemented yet.')
+        psm_full_dfs = []
+        for file in files:
+            outfolder = utils.get_output_folder(args['output'], file)
+            outbasename = utils.get_output_basename(file)
+            csvname = utils.filename(outfolder, outbasename, 'psm_full')
+            try:
+                df = pd.read_csv(csvname, sep='\t')
+                for key in ['protein', 'peptide_next_aa', 'peptide_prev_aa', 'num_tol_term', 'protein_descr', 'modifications']:
+                    df[key] = df[key].apply(ast.literal_eval)
+                psm_full_dfs.append(df)
+            except FileNotFoundError:
+                logging.warning('File %s not found, skipping...', csvname)
+        all_psms = pd.concat(psm_full_dfs)
+        all_psms_f2 = all_psms[(~all_psms['decoy1']) & (all_psms['q'] < args['fdr'] / 100)]
 
-def process_file(args, decoy2=None):
-    fname = args['file']
-    outfolder = utils.get_output_folder(args['output'], fname)
-    outbasename = utils.get_output_basename(fname)
-    outfdr = args['fdr'] / 100
-    decoy_prefix = args['prefix']
-    decoy_infix = args['infix']
-    sf = args['separate_figures']
-    logging.info('Loading file %s...', os.path.basename(fname))
-    if args['enzyme']:
-        cleavage_rule = utils.convert_tandem_cleave_rule_to_regexp(args['enzyme'])
-    else:
-        cleavage_rule = None
+        peptides, peptides_f, proteins, proteins_f, protein_groups = build_output_tables(all_psms, all_psms_f2, decoy_prots_2, args, 'PEP')
+        if peptides is None:
+            logging.warning('No peptides identified in union.')
+            return 0
 
-    try:
-        df1, all_decoys_2, num_psms_def = utils.prepare_dataframe(fname, decoy_prefix=decoy_prefix,
-            decoy_infix=decoy_infix, cleavage_rule=cleavage_rule, fdr=outfdr, decoy2set=decoy2)
-    except utils.NoDecoyError:
-        logging.error('No decoys were found. Please check decoy_prefix/infix parameter or your search output.')
-        return
-    except utils.WrongInputError:
-        logging.error('Unsupported input file format. Use .pep.xml or .mzid files.')
-        return
+        logging.debug('Protein FDR in full table: %f%%', 100*aux.fdr(proteins, is_decoy='decoy2'))
 
-    if args['allowed_peptides']:
-        allowed_peptides = set([pseq.strip().split()[0] for pseq in open(args['allowed_peptides'], 'r')])
-    else:
-        allowed_peptides = None
-    if args['group_prefix']:
-        group_prefix = args['group_prefix']
-    else:
-        group_prefix = None
-    if group_prefix and allowed_peptides:
-        logging.error('Only one type of group filter can be used: --allowed-peptides or --group-prefix.')
-        return
+        write_tables(outfolder, 'union', all_psms, all_psms_f2, peptides_f, proteins_f, protein_groups)
 
+        plot_outfigures(all_psms, all_psms_f2[~all_psms_f2['decoy2']], peptides, peptides_f[~peptides_f['decoy2']],
+            outfolder, 'union', df_proteins=proteins, df_proteins_f=proteins_f[~proteins_f['decoy2']],
+            separate_figures=args['separate_figures'])
+
+        logging.info('Union calculation complete.')
+
+
+def filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, decoy_prefix, decoy_infix):
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
-    df1 = utils.calc_PEP(df1, pep_ratio=pep_ratio)
+    utils.calc_PEP(df1, pep_ratio=pep_ratio)
     if allowed_peptides or group_prefix:
         prev_num = df1.shape[0]
         if allowed_peptides:
@@ -94,55 +92,43 @@ def process_file(args, decoy2=None):
     if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
         logging.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
         logging.warning('Using only default search scores for machine learning...')
-        df1 = utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
+        utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
         df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
             reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
 
+    return df1, df1_f2
 
-    output_path_psms_full = os.path.join(outfolder, outbasename + '_PSMs_full.tsv')
-    df1 = utils.calc_qvals(df1, ratio=pep_ratio)
-    df1.to_csv(output_path_psms_full, sep='\t', index=False, columns=utils.get_columns_to_output(out_type='psm_full'))
-    if df1_f2.shape[0] > 0:
-        output_path_psms = os.path.join(outfolder, outbasename + '_PSMs.tsv')
-        df1_f2[~df1_f2['decoy2']].to_csv(output_path_psms, sep='\t', index=False, columns=utils.get_columns_to_output(out_type='psm'))
 
-        df1 = utils.calc_psms(df1)
-        df1_peptides = df1.sort_values('ML score', ascending=True).drop_duplicates(['peptide'])
+def build_output_tables(df1, df1_f2, decoy2, args, key='ML score'):
+    if args['database']:
+        path_to_fasta = os.path.abspath(args['database'])
+    else:
+        path_to_fasta = None
+    outfdr = args['fdr'] / 100
+    pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
+
+    utils.calc_qvals(df1, ratio=pep_ratio)
+
+    if df1_f2.shape[0]:
+        utils.calc_psms(df1)
+        df1_peptides = df1.sort_values(key, ascending=True).drop_duplicates(['peptide'])
         df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
-            key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+            key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
         if df1_peptides_f.shape[0] == 0:
             df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
-                key='ML score', is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
-        output_path_peptides = os.path.join(outfolder, outbasename + '_peptides.tsv')
-        df1_peptides_f[~df1_peptides_f['decoy2']].to_csv(output_path_peptides, sep='\t', index=False,
-            columns=utils.get_columns_to_output(out_type='peptide'))
+                key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
 
-        if args['database']:
-            path_to_fasta = os.path.abspath(args['database'])
-        else:
-            path_to_fasta = None
-        df_proteins = utils.get_proteins_dataframe(df1_f2, df1_peptides_f, decoy_prefix=args['prefix'],
-            decoy_infix=args['infix'], all_decoys_2=all_decoys_2, path_to_fasta=path_to_fasta)
+        df_proteins = utils.get_proteins_dataframe(df1_f2, decoy_prefix=args['prefix'],
+            decoy_infix=args['infix'], all_decoys_2=decoy2, path_to_fasta=path_to_fasta)
         prot_ratio = 0.5
-        df_proteins = df_proteins[df_proteins.apply(lambda x: not x['decoy'] or x['decoy2'], axis=1)]
+        df_proteins = df_proteins[~df_proteins['decoy1']]
         df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
             reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=1)
         if df_proteins_f.shape[0] == 0:
             df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
                 reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=0)
-        df_proteins_f = utils.get_protein_groups(df_proteins_f)
-        output_path_proteins = os.path.join(outfolder, outbasename + '_proteins.tsv')
-        df_proteins_f.to_csv(output_path_proteins, sep='\t', index=False,
-            columns=utils.get_columns_to_output(out_type='protein'))
-
+        utils.add_protein_groups(df_proteins_f)
         df_protein_groups = df_proteins_f[df_proteins_f['groupleader']]
-        output_path_protein_groups = os.path.join(outfolder, outbasename + '_protein_groups.tsv')
-        df_protein_groups.to_csv(output_path_protein_groups, sep='\t', index=False,
-            columns=utils.get_columns_to_output(out_type='protein'))
-
-        plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']],
-            outfolder, outbasename, df_proteins=df_proteins, df_proteins_f=df_proteins_f[~df_proteins_f['decoy2']],
-            separate_figures=sf)
 
         logging.info('Final results at %s%% FDR level:', args['fdr'])
         logging.info('Identified PSMs: %s', df1_f2[~df1_f2['decoy2']].shape[0])
@@ -151,5 +137,64 @@ def process_file(args, decoy2=None):
         logging.info('Identified protein groups: %s', df_protein_groups.shape[0])
         logging.info('The search is finished.')
 
+        return df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups
     else:
         logging.error('PSMs cannot be filtered at %s%% FDR. Please increase allowed FDR.', args['fdr'])
+        return (None,) * 5
+
+
+def write_tables(outfolder, outbasename, df1, df1_f2, df1_peptides_f, df_proteins_f, df_protein_groups):
+    df1.to_csv(utils.filename(outfolder, outbasename, 'psm_full'),
+        sep='\t', index=False, columns=utils.get_columns_to_output(df1.columns, 'psm_full'))
+    df1_f2[~df1_f2['decoy2']].to_csv(utils.filename(outfolder, outbasename, 'psm'),
+        sep='\t', index=False, columns=utils.get_columns_to_output(df1_f2.columns, 'psm'))
+    df1_peptides_f[~df1_peptides_f['decoy2']].to_csv(utils.filename(outfolder, outbasename, 'peptide'),
+        sep='\t', index=False, columns=utils.get_columns_to_output(df1_peptides_f.columns, 'peptide'))
+
+    df_proteins_f.to_csv(utils.filename(outfolder, outbasename, 'protein'), sep='\t', index=False,
+            columns=utils.get_columns_to_output(df_proteins_f.columns, 'protein'))
+    df_protein_groups.to_csv(utils.filename(outfolder, outbasename, 'protein_group'), sep='\t', index=False,
+            columns=utils.get_columns_to_output(df_protein_groups.columns, 'protein'))
+
+
+def process_file(args, decoy2=None):
+    fname = args['file']
+    outfolder = utils.get_output_folder(args['output'], fname)
+    outbasename = utils.get_output_basename(fname)
+    outfdr = args['fdr'] / 100
+    decoy_prefix = args['prefix']
+    decoy_infix = args['infix']
+    sf = args['separate_figures']
+    logging.info('Loading file %s...', os.path.basename(fname))
+    if args['enzyme']:
+        cleavage_rule = utils.convert_tandem_cleave_rule_to_regexp(args['enzyme'])
+    else:
+        cleavage_rule = None
+
+    try:
+        df1, all_decoys_2, num_psms_def = utils.prepare_dataframe(fname, decoy_prefix=decoy_prefix,
+            decoy_infix=decoy_infix, cleavage_rule=cleavage_rule, fdr=outfdr, decoy2set=decoy2)
+    except utils.NoDecoyError:
+        logging.error('No decoys were found. Please check decoy_prefix/infix parameter or your search output.')
+        return -1
+    except utils.WrongInputError:
+        logging.error('Unsupported input file format. Use .pep.xml or .mzid files.')
+        return -1
+
+    try:
+        allowed_peptides, group_prefix = utils.variant_peptides(args['allowed_peptides'], args['group_prefix'])
+    except ValueError as e:
+        logging.error(e.args[0])
+        return -1
+
+    df1, df1_f2 = filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, decoy_prefix, decoy_infix)
+
+    df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups = build_output_tables(df1, df1_f2, all_decoys_2, args)
+    if df1_peptides is None:
+        return 0
+
+    write_tables(outfolder, outbasename, df1, df1_f2, df1_peptides_f, df_proteins_f, df_protein_groups)
+
+    plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']],
+            outfolder, outbasename, df_proteins=df_proteins, df_proteins_f=df_proteins_f[~df_proteins_f['decoy2']],
+            separate_figures=sf)
