@@ -415,7 +415,7 @@ def get_features(dataframe):
                             'MeanRelErrorAll', 'MeanRelErrorTop7', 'NumMatchedMainIons', 'StdevErrorAll', \
                             'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio', \
                             'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio', 'fragmentMT', 'ISOWIDTHDIFF', \
-                            'MS1Intensity', 'sumI_to_MS1Intensity']:
+                            'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std']:
             if not feature.startswith('mass shift'):
                 columns_to_remove.append(feature)
     feature_columns = feature_columns.drop(columns_to_remove)
