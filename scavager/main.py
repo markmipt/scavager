@@ -75,26 +75,19 @@ def filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, 
             logging.warning('0 decoy identifications are present in the group.\n Please check\
             that allowed_peptides or group_prefix contains also decoy peptides and proteins!')
 
-        df1_f = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
-        remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+        df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
+        remove_decoy=False, ratio=pep_ratio, formula=1)
         num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
-        if num_psms_def == 0:
-            df1_f = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
-            remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
-            num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
 
-    df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
-        reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
-    if df1_f2.shape[0] == 0:
-        df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
-            reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
+    df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False,
+        remove_decoy=False, ratio=pep_ratio, formula=1)
 
     if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
         logging.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
         logging.warning('Using only default search scores for machine learning...')
         utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
-        df1_f2 = aux.filter(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
-            reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
+        df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False,
+        remove_decoy=False, ratio=pep_ratio, formula=1)
 
     return df1, df1_f2
 
@@ -112,21 +105,15 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score'):
     if df1_f2.shape[0]:
         utils.calc_psms(df1)
         df1_peptides = df1.sort_values(key, ascending=True).drop_duplicates(['peptide'])
-        df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
-            key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
-        if df1_peptides_f.shape[0] == 0:
-            df1_peptides_f = aux.filter(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
-                key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
+        df1_peptides_f = utils.filter_custom(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
+            key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1)
 
         df_proteins = utils.get_proteins_dataframe(df1_f2, decoy_prefix=args['prefix'],
             decoy_infix=args['infix'], all_decoys_2=decoy2, path_to_fasta=path_to_fasta)
         prot_ratio = 0.5
         df_proteins = df_proteins[~df_proteins['decoy1']]
-        df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
-            reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=1)
-        if df_proteins_f.shape[0] == 0:
-            df_proteins_f = aux.filter(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
-                reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=0)
+        df_proteins_f = utils.filter_custom(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
+            reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1)
         utils.add_protein_groups(df_proteins_f)
         df_protein_groups = df_proteins_f[df_proteins_f['groupleader']]
 

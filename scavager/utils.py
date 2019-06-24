@@ -21,6 +21,15 @@ class NoDecoyError(ValueError):
 class WrongInputError(NotImplementedError):
     pass
 
+def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula):
+    df_filtered = aux.filter(df, fdr=fdr, key=key, is_decoy=is_decoy, reverse=reverse,
+        remove_decoy=remove_decoy, ratio=ratio, correction=1, formula=formula)
+    if not df_filtered.shape[0]:
+        df_filtered = aux.filter(df, fdr=fdr, key=key, is_decoy=is_decoy, reverse=reverse,
+            remove_decoy=remove_decoy, ratio=ratio, correction=0, formula=formula)
+    return df_filtered
+
+
 def convert_tandem_cleave_rule_to_regexp(cleavage_rule):
 
     def get_sense(c_term_rule, n_term_rule):
