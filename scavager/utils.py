@@ -531,9 +531,11 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
     df['log_score'] = np.log10(df['ML score'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
 
 def calc_qvals(df, ratio):
-    df_t = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2', remove_decoy=False, formula=1, ratio=ratio)
+    logging.debug('Q-value calculation started...')
+    df_t = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2',
+        remove_decoy=False, formula=1, full_output=True, ratio=ratio, correction=1)
     df.loc[~df['decoy1'], 'q'] = df_t['q']
-    df.loc[df['decoy1'], 'q'] = -1
+    df.loc[df['decoy1'], 'q'] = None
 
 _columns_to_output = {
     'psm_full': ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',

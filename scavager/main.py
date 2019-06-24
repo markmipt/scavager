@@ -43,7 +43,7 @@ def process_files(args):
         all_psms = pd.concat(psm_full_dfs)
         all_psms_f2 = all_psms[(~all_psms['decoy1']) & (all_psms['q'] < args['fdr'] / 100)]
 
-        peptides, peptides_f, proteins, proteins_f, protein_groups = build_output_tables(all_psms, all_psms_f2, decoy_prots_2, args, 'PEP')
+        peptides, peptides_f, proteins, proteins_f, protein_groups = build_output_tables(all_psms, all_psms_f2, decoy_prots_2, args, 'PEP', calc_qvals=False)
         if peptides is None:
             logging.warning('No peptides identified in union.')
             return 0
@@ -92,7 +92,7 @@ def filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, 
     return df1, df1_f2
 
 
-def build_output_tables(df1, df1_f2, decoy2, args, key='ML score'):
+def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=True):
     if args['database']:
         path_to_fasta = os.path.abspath(args['database'])
     else:
@@ -100,7 +100,8 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score'):
     outfdr = args['fdr'] / 100
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
 
-    utils.calc_qvals(df1, ratio=pep_ratio)
+    if calc_qvals:
+        utils.calc_qvals(df1, ratio=pep_ratio)
 
     if df1_f2.shape[0]:
         utils.calc_psms(df1)
