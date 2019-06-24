@@ -493,12 +493,11 @@ def get_cat_model(df, feature_columns):
 def calc_PEP(df, pep_ratio=1.0, reduced=False):
     if not reduced:
         feature_columns = get_features(df)
+        cat_model = get_cat_model(df, feature_columns)
+        x_all = get_X_array(df, feature_columns)
+        df['ML score'] = cat_model.predict_proba(x_all)[:, 1]
     else:
-        feature_columns = ['expect']
-    cat_model = get_cat_model(df, feature_columns)
-    x_all = get_X_array(df, feature_columns)
-    df['ML score'] = cat_model.predict_proba(x_all)[:, 1]
-
+        df['ML score'] = df['expect']
 
     df0_t = df[~df['decoy']]
     df0_d = df[df['decoy']]
