@@ -45,6 +45,7 @@ def plot_hist_basic(array_all, array_valid, fig, subplot_max_x, subplot_i, xlabe
     plt.xlabel(xlabel)
     if separate_figures:
         plt.savefig(outpath(fig, xlabel, '.png'))
+        plt.close()
 
 def plot_basic_figures(df, df_f, fig, subplot_max_x, subplot_start, idtype):
     mz_array, rt_exp_array, lengths_array = get_basic_distributions(df)
@@ -268,3 +269,4 @@ def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename
     plt.tight_layout()
     if not separate_figures:
         plt.savefig(os.path.join(outfolder, outbasename) + '.png')
+        plt.close()
