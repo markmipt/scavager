@@ -129,8 +129,9 @@ def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
     aa_theor_sum = sum(aa_theor.values())
     lbls, vals = [], []
     for aa in sorted(std_aa_list):
-        lbls.append(aa)
-        vals.append((aa_exp.get(aa, 0)/aa_exp_sum)/(aa_theor.get(aa, 0)/aa_theor_sum))
+        if aa_theor.get(aa, 0):
+            lbls.append(aa)
+            vals.append((aa_exp.get(aa, 0)/aa_exp_sum)/(aa_theor.get(aa, 0)/aa_theor_sum))
     std_val = np.std(vals)
     clrs = [greencolor if abs(x-1)<=2*std_val else redcolor for x in vals]
     ax.bar(range(len(vals)), vals, color=clrs)
