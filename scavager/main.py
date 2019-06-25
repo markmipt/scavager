@@ -52,9 +52,10 @@ def process_files(args):
 
         write_tables(outfolder, 'union', all_psms, all_psms_f2, peptides_f, proteins_f, protein_groups)
 
-        plot_outfigures(all_psms, all_psms_f2[~all_psms_f2['decoy2']], peptides, peptides_f[~peptides_f['decoy2']],
-            outfolder, 'union', df_proteins=proteins, df_proteins_f=proteins_f[~proteins_f['decoy2']],
-            separate_figures=args['separate_figures'])
+        if len(all_psms_f2[~all_psms_f2['decoy2']]) >= 3:
+            plot_outfigures(all_psms, all_psms_f2[~all_psms_f2['decoy2']], peptides, peptides_f[~peptides_f['decoy2']],
+                outfolder, 'union', df_proteins=proteins, df_proteins_f=proteins_f[~proteins_f['decoy2']],
+                separate_figures=args['separate_figures'])
 
         logging.info('Union calculation complete.')
 
