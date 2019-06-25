@@ -62,6 +62,16 @@ def process_files(args):
 def filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, decoy_prefix, decoy_infix):
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
     utils.calc_PEP(df1, pep_ratio=pep_ratio)
+    df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
+    remove_decoy=False, ratio=pep_ratio, formula=1)
+    num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
+    df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False,
+    remove_decoy=False, ratio=pep_ratio, formula=1)
+    if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
+        logging.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
+        logging.warning('Using only default search scores for machine learning...')
+        utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
+
     if allowed_peptides or group_prefix:
         prev_num = df1.shape[0]
         if allowed_peptides:
@@ -75,19 +85,19 @@ def filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, 
             logging.warning('0 decoy identifications are present in the group.\n Please check\
             that allowed_peptides or group_prefix contains also decoy peptides and proteins!')
 
-        df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
-        remove_decoy=False, ratio=pep_ratio, formula=1)
-        num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
+        # df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
+        # remove_decoy=False, ratio=pep_ratio, formula=1)
+        # num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
 
     df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False,
         remove_decoy=False, ratio=pep_ratio, formula=1)
 
-    if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
-        logging.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
-        logging.warning('Using only default search scores for machine learning...')
-        utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
-        df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False,
-        remove_decoy=False, ratio=pep_ratio, formula=1)
+    # if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
+    #     logging.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
+    #     logging.warning('Using only default search scores for machine learning...')
+    #     utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
+    #     df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False,
+    #     remove_decoy=False, ratio=pep_ratio, formula=1)
 
     return df1, df1_f2
 
