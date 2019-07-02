@@ -1,11 +1,16 @@
 from __future__ import division
-from . import utils
-from .utils_figures import plot_outfigures
-from pyteomics import auxiliary as aux
 import os.path
 import logging
 import ast
+
 import pandas as pd
+from pyteomics import auxiliary as aux
+try:
+    from pyteomics import pepxmltk
+except ImportError:
+    pepxmltk = None
+from . import utils
+from .utils_figures import plot_outfigures
 
 def process_files(args):
     files = args['file']
@@ -15,7 +20,9 @@ def process_files(args):
         if not args['database']:
             logging.error('--database is required with --union.')
             return
-
+    if args['create_pepxml'] and pepxmltk is None:
+        logging.error('pepxmltk is required for --create-pepxml. Please install it.')
+        return
     if args['database']:
         decoy_prots_2 = utils.split_fasta_decoys(args['database'], args['prefix'], args['infix'])
     else:
@@ -35,7 +42,8 @@ def process_files(args):
             csvname = utils.filename(outfolder, outbasename, 'psm_full')
             try:
                 df = pd.read_csv(csvname, sep='\t')
-                for key in ['protein', 'peptide_next_aa', 'peptide_prev_aa', 'num_tol_term', 'protein_descr', 'modifications']:
+                for key in ['protein', 'peptide_next_aa', 'peptide_prev_aa', 'num_tol_term',
+                'protein_descr', 'modifications']:
                     df[key] = df[key].apply(ast.literal_eval)
                 psm_full_dfs.append(df)
             except FileNotFoundError:
@@ -43,7 +51,8 @@ def process_files(args):
         all_psms = pd.concat(psm_full_dfs)
         all_psms_f2 = all_psms[(~all_psms['decoy1']) & (all_psms['q'] < args['fdr'] / 100)]
 
-        peptides, peptides_f, proteins, proteins_f, protein_groups = build_output_tables(all_psms, all_psms_f2, decoy_prots_2, args, 'PEP', calc_qvals=False)
+        peptides, peptides_f, proteins, proteins_f, protein_groups = build_output_tables(all_psms,
+            all_psms_f2, decoy_prots_2, args, 'PEP', calc_qvals=False)
         if peptides is None:
             logging.warning('No peptides identified in union.')
             return 0
@@ -53,23 +62,27 @@ def process_files(args):
         write_tables(outfolder, 'union', all_psms, all_psms_f2, peptides_f, proteins_f, protein_groups)
 
         if len(all_psms_f2[~all_psms_f2['decoy2']]) >= 3:
-            plot_outfigures(all_psms, all_psms_f2[~all_psms_f2['decoy2']], peptides, peptides_f[~peptides_f['decoy2']],
-                outfolder, 'union', df_proteins=proteins, df_proteins_f=proteins_f[~proteins_f['decoy2']],
+            plot_outfigures(all_psms, all_psms_f2[~all_psms_f2['decoy2']], peptides,
+                peptides_f[~peptides_f['decoy2']],
+                outfolder, 'union', df_proteins=proteins,
+                df_proteins_f=proteins_f[~proteins_f['decoy2']],
                 separate_figures=args['separate_figures'])
 
         logging.info('Union calculation complete.')
 
 
-def filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, decoy_prefix, decoy_infix):
+def filter_dataframe(
+    df1, outfdr, num_psms_def, allowed_peptides, group_prefix, decoy_prefix, decoy_infix):
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
     utils.calc_PEP(df1, pep_ratio=pep_ratio)
-    df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
-    remove_decoy=False, ratio=pep_ratio, formula=1)
+    df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2',
+        reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1)
     num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
-    df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False,
-    remove_decoy=False, ratio=pep_ratio, formula=1)
+    df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score',
+        is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1)
     if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
-        logging.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
+        logging.warning('Machine learning works worse than default filtering: %d vs %d PSMs.',
+            df1_f2.shape[0], num_psms_def)
         logging.warning('Using only default search scores for machine learning...')
         utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
 
@@ -78,27 +91,18 @@ def filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, 
         if allowed_peptides:
             df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
         elif group_prefix:
-            df1 = df1[df1['protein'].apply(utils.is_group_specific, group_prefix=group_prefix, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)]
+            df1 = df1[df1['protein'].apply(utils.is_group_specific,
+                group_prefix=group_prefix, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)]
 
-        logging.info('%.1f%% of identifications were dropped during group-specific filtering.', (100 * float(prev_num - df1.shape[0]) / prev_num))
+        logging.info('%.1f%% of identifications were dropped during group-specific filtering.',
+            (100 * float(prev_num - df1.shape[0]) / prev_num))
 
         if df1[df1['decoy']].shape[0] == 0:
-            logging.warning('0 decoy identifications are present in the group.\n Please check\
-            that allowed_peptides or group_prefix contains also decoy peptides and proteins!')
+            logging.warning('0 decoy identifications are present in the group. Please check'
+            'that allowed_peptides contains decoy peptides or that decoy proteins have group_prefix!')
 
-        # df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2', reverse=False,
-        # remove_decoy=False, ratio=pep_ratio, formula=1)
-        # num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
-
-    df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False,
-        remove_decoy=False, ratio=pep_ratio, formula=1)
-
-    # if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
-    #     logging.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
-    #     logging.warning('Using only default search scores for machine learning...')
-    #     utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
-    #     df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2', reverse=False,
-    #     remove_decoy=False, ratio=pep_ratio, formula=1)
+    df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
+        reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1)
 
     return df1, df1_f2
 
@@ -142,7 +146,8 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
         return (None,) * 5
 
 
-def write_tables(outfolder, outbasename, df1, df1_f2, df1_peptides_f, df_proteins_f, df_protein_groups):
+def write_tables(outfolder, outbasename, df1, df1_f2,
+    df1_peptides_f, df_proteins_f, df_protein_groups):
     df1.to_csv(utils.filename(outfolder, outbasename, 'psm_full'),
         sep='\t', index=False, columns=utils.get_columns_to_output(df1.columns, 'psm_full'))
     df1_f2[~df1_f2['decoy2']].to_csv(utils.filename(outfolder, outbasename, 'psm'),
@@ -186,14 +191,19 @@ def process_file(args, decoy2=None):
         logging.error(e.args[0])
         return -1
 
-    df1, df1_f2 = filter_dataframe(df1, outfdr, num_psms_def, allowed_peptides, group_prefix, decoy_prefix, decoy_infix)
+    df1, df1_f2 = filter_dataframe(df1, outfdr, num_psms_def,
+        allowed_peptides, group_prefix, decoy_prefix, decoy_infix)
 
-    df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups = build_output_tables(df1, df1_f2, all_decoys_2, args)
+    df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups = build_output_tables(
+        df1, df1_f2, all_decoys_2, args)
     if df1_peptides is None:
         return 0
 
     write_tables(outfolder, outbasename, df1, df1_f2, df1_peptides_f, df_proteins_f, df_protein_groups)
+    if args['create_pepxml']:
+        pepxmltk.easy_write_pepxml([args['file']], utils.filename(outfolder, outbasename, 'pepxml'),
+            set(df1_f2['spectrum']))
 
     plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']],
-            outfolder, outbasename, df_proteins=df_proteins, df_proteins_f=df_proteins_f[~df_proteins_f['decoy2']],
-            separate_figures=sf)
+            outfolder, outbasename, df_proteins=df_proteins,
+            df_proteins_f=df_proteins_f[~df_proteins_f['decoy2']], separate_figures=sf)

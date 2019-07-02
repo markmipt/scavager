@@ -453,6 +453,7 @@ def filename(outfolder, outbasename, ftype):
     type_suffix = {
         'psm_full': '_PSMs_full.tsv',
         'psm': '_PSMs.tsv',
+        'pepxml': '.scavager.pep.xml',
         'peptide': '_peptides.tsv',
         'protein': '_proteins.tsv',
         'protein_group': '_protein_groups.tsv'
