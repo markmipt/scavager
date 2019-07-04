@@ -352,6 +352,12 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         df1['protein_descr'] = df1['protein description']
         df1['expect'] = df1['MS-GF:EValue']
 
+    if set(df1['protein_descr'].str[0]) == {None}:
+        # MSFragger
+        protein = df1['protein'].str[0].str.split(None, 1)
+        df1['protein'] = protein.str[0].apply(lambda x: [x])
+        df1['protein_descr'] = protein.str[1].apply(lambda x: [x])
+
     df1 = df1[~pd.isna(df1['peptide'])]
     if 'MS1Intensity' not in df1:
         df1['MS1Intensity'] = 0.0
