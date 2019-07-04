@@ -60,6 +60,9 @@ def process_files(args):
         logging.debug('Protein FDR in full table: %f%%', 100*aux.fdr(proteins, is_decoy='decoy2'))
 
         write_tables(outfolder, 'union', all_psms, all_psms_f2, peptides_f, proteins_f, protein_groups)
+        if args['create_pepxml']:
+            pepxmltk.easy_write_pepxml(files, utils.filename(outfolder, 'union', 'pepxml'),
+            set(all_psms_f2.loc[~all_psms_f2['decoy2'], 'spectrum']))
 
         if len(all_psms_f2[~all_psms_f2['decoy2']]) >= 3:
             plot_outfigures(all_psms, all_psms_f2[~all_psms_f2['decoy2']], peptides,
@@ -202,7 +205,7 @@ def process_file(args, decoy2=None):
     write_tables(outfolder, outbasename, df1, df1_f2, df1_peptides_f, df_proteins_f, df_protein_groups)
     if args['create_pepxml']:
         pepxmltk.easy_write_pepxml([args['file']], utils.filename(outfolder, outbasename, 'pepxml'),
-            set(df1_f2['spectrum']))
+            set(df1_f2.loc[~df1_f2['decoy2'], 'spectrum']))
 
     plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']],
             outfolder, outbasename, df_proteins=df_proteins,
