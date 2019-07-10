@@ -206,14 +206,13 @@ def get_output_basename(fname):
         basename = os.path.splitext(basename)[0]
     return basename
 
-def get_output_folder(outfolder, fname):
-    if not outfolder:
+def get_output_folder(folder, fname):
+    if not folder:
         return os.path.dirname(os.path.realpath(fname))
     else:
-        tmp_outfolder = os.path.join(os.path.dirname(os.path.realpath(fname)), outfolder)
-        if not os.path.isdir(tmp_outfolder):
-            os.mkdir(tmp_outfolder)
-        return tmp_outfolder
+        if not os.path.isdir(folder):
+            os.mkdir(folder)
+        return folder
 
 def calc_RT(seq, RC):
     try:
@@ -413,7 +412,7 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         logging.info('R^2 = %f , std = %f', r_value**2, std_value)
         df1['RT diff'] = df1['RT pred'] - df1['RT exp']
         logging.info('Retention model calibrated successfully.')
-    except:
+    except Exception:
         logging.warning('Retention times are probably missing in input file.')
         df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, achrom.RCs_krokhin_100A_tfa))
         df1['RT diff'] = df1['RT exp']
@@ -545,16 +544,21 @@ def calc_qvals(df, ratio):
     df.loc[df['decoy1'], 'q'] = None
 
 _columns_to_output = {
-    'psm_full': ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'RT diff', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2', 'PEP',
+    'psm_full': ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge',
+         'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred',
+         'RT diff', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2', 'PEP',
          'MS1Intensity', 'ISOWIDTHDIFF'],
-    'psm': ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP',
-         'MS1Intensity', 'ISOWIDTHDIFF'],
-    'peptide': ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP',
-         'MS1Intensity', 'ISOWIDTHDIFF'],
-    'protein': ['dbname','description','PSMs','peptides','NSAF','TOP3','sq','score','length', 'all proteins', 'groupleader'],
+    'psm': ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge',
+         'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred',
+         'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF'],
+    'peptide': ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'ML score', 'modifications',
+         'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp',
+         'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF'],
+    'protein': ['dbname', 'description', 'PSMs', 'peptides', 'NSAF', 'TOP3', 'sq', 'score',
+         'length', 'all proteins', 'groupleader'],
     }
 
 def get_columns_to_output(columns, out_type):
