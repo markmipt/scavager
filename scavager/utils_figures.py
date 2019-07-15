@@ -77,7 +77,7 @@ def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel
     else:
         fig.add_subplot(subplot_max_x, 3, subplot_i)
     array_t, array_d, array_v = inarrays
-    cbins, width = get_bins_for_descriptors((array_t, array_d, array_v))
+    cbins, width = get_bins_for_descriptors(inarrays)
     H1, _ = np.histogram(array_d, bins=cbins)
     H2, _ = np.histogram(array_t, bins=cbins)
     H3, _ = np.histogram(array_v, bins=cbins)
@@ -276,10 +276,13 @@ def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename
     plot_basic_figures(df_peptides, df_peptides_f, fig, subplot_max_x, 4, 'peptides')
     if 'LOG10_NSAF' in df_proteins.columns:
         logger.debug('Plotting protein figures...')
-        plot_protein_figures(df_proteins, df_proteins_f, fig, subplot_max_x, 7)
-        logger.debug('Plotting AA stats figures...')
-        plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, 9)
-        descriptor_start_index += 3
+        try:
+            plot_protein_figures(df_proteins, df_proteins_f, fig, subplot_max_x, 7)
+            logger.debug('Plotting AA stats figures...')
+            plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, 9)
+            descriptor_start_index += 3
+        except ZeroDivisionError:
+            logger.warning('There was an error in protein stats calculation. No protein figures will be plotted.')
     logger.debug('Plotting descriptor figures...')
     plot_descriptors_figures(df, df_f, fig, subplot_max_x, descriptor_start_index)
     plt.grid(color='#EEEEEE')
