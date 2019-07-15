@@ -15,10 +15,16 @@ try:
 except ImportError:
     pass
 import re
+import sys
+import logging
+logger = logging.getLogger(__name__)
 
 redcolor = '#FC6264'
 bluecolor = '#70aed1'
 greencolor = '#8AA413'
+
+def _get_sf(fig):
+    return isinstance(fig, str) if sys.version_info.major == 3 else isinstance(fig, basestring)
 
 def get_basic_distributions(df):
     mz_array = ((df['calc_neutral_pep_mass'] + df['assumed_charge'] * 1.007276 ) / df['assumed_charge']).values
@@ -33,7 +39,7 @@ def get_descriptor_array(df, df_f, dname):
     return array_t, array_d, array_v
 
 def plot_hist_basic(array_all, array_valid, fig, subplot_max_x, subplot_i, xlabel, ylabel='# of identifications', bin_size_one=False):
-    separate_figures = isinstance(fig, str)
+    separate_figures = _get_sf(fig)
     if separate_figures:
         plt.figure()
     else:
@@ -65,7 +71,7 @@ def plot_protein_figures(df, df_f, fig, subplot_max_x, subplot_start):
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='sq'), fig, subplot_max_x, subplot_start+1, xlabel='sequence coverage')
 
 def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel='# of identifications'):
-    separate_figures = isinstance(fig, str)
+    separate_figures = _get_sf(fig)
     if separate_figures:
         plt.figure()
     else:
@@ -94,6 +100,7 @@ def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel
         plt.gcf().canvas.draw()
     if separate_figures:
         plt.savefig(outpath(fig, xlabel, '.png'))
+        plt.close()
 
 def plot_legend(fig, subplot_max_x, subplot_start):
     ax = fig.add_subplot(subplot_max_x, 3, subplot_start)
@@ -107,7 +114,11 @@ def plot_legend(fig, subplot_max_x, subplot_start):
     ax.set_axis_off()
 
 def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
-    ax = fig.add_subplot(subplot_max_x, 3, subplot_i)
+    separate_figures = _get_sf(fig)
+    if separate_figures:
+        plt.figure()
+    else:
+        fig.add_subplot(subplot_max_x, 3, subplot_i)
 
     # Generate list of 20 standart amino acids
     std_aa_list = list(mass.std_aa_mass.keys())
@@ -135,11 +146,10 @@ def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
             vals.append((aa_exp.get(aa, 0)/aa_exp_sum)/(aa_theor.get(aa, 0)/aa_theor_sum))
     std_val = np.std(vals)
     clrs = [greencolor if abs(x-1)<=2*std_val else redcolor for x in vals]
-    ax.bar(range(len(vals)), vals, color=clrs)
-    ax.set_xticks(range(len(lbls)))
-    ax.set_xticklabels(lbls)
-    ax.hlines(1.0, range(len(vals))[0]-1, range(len(vals))[-1]+1)
-    ax.set_ylabel('amino acid ID rate')
+    plt.bar(range(len(vals)), vals, color=clrs)
+    plt.xticks(range(len(lbls)), lbls)
+    plt.hlines(1.0, range(len(vals))[0]-1, range(len(vals))[-1]+1)
+    plt.ylabel('amino acid ID rate')
 
 
 def calc_max_x_value(df, df_proteins):
@@ -187,7 +197,7 @@ def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
             subplot_start += 1
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='log_score'), fig, subplot_max_x, subplot_start, xlabel='LOG10(ML score)')
     subplot_start += 1
-    separate_figures = isinstance(fig, str)
+    separate_figures = _get_sf(fig)
     if not separate_figures:
         plot_legend(fig, subplot_max_x, subplot_start)
     subplot_start += 1
@@ -238,6 +248,7 @@ def get_fdbinsize(data_list):
     upperquartile = scoreatpercentile(data_list, 75)
     lowerquartile = scoreatpercentile(data_list, 25)
     iqr = upperquartile - lowerquartile
+    logger.debug('IQR: %s, data size: %s', iqr, len(data_list))
     optimal_bin_size = 2. * iqr / len(data_list) ** (1. / 3.)
     return optimal_bin_size
 
@@ -254,16 +265,22 @@ def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename
         fig.set_size_inches(3000.0/dpi, 3000.0/dpi)
     else:
         outfolder = os.path.join(outfolder, outbasename + '_figures')
-        os.makedirs(outfolder, exist_ok=True)
+        if not os.path.isdir(outfolder):
+            os.makedirs(outfolder)
         fig = outfolder
     subplot_max_x = calc_max_x_value(df, df_proteins)
     descriptor_start_index = 7
+    logger.debug('Plotting PSM figures...')
     plot_basic_figures(df, df_f, fig, subplot_max_x, 1, 'PSMs')
+    logger.debug('Plotting peptide figures...')
     plot_basic_figures(df_peptides, df_peptides_f, fig, subplot_max_x, 4, 'peptides')
     if 'LOG10_NSAF' in df_proteins.columns:
+        logger.debug('Plotting protein figures...')
         plot_protein_figures(df_proteins, df_proteins_f, fig, subplot_max_x, 7)
+        logger.debug('Plotting AA stats figures...')
         plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, 9)
         descriptor_start_index += 3
+    logger.debug('Plotting descriptor figures...')
     plot_descriptors_figures(df, df_f, fig, subplot_max_x, descriptor_start_index)
     plt.grid(color='#EEEEEE')
     plt.tight_layout()

@@ -14,6 +14,7 @@ from sklearn.isotonic import IsotonicRegression
 import logging
 import warnings
 warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
+logger = logging.getLogger(__name__)
 
 class NoDecoyError(ValueError):
     pass
@@ -399,9 +400,9 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False,
             remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
     num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
-    logging.info('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d', num_psms_def)
+    logger.info('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d', num_psms_def)
     try:
-        logging.info('Calibrating retention model...')
+        logger.info('Calibrating retention model...')
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             retention_coefficients = achrom.get_RCs_vary_lcp(df1_f['peptide'].values, \
@@ -409,11 +410,11 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         df1_f['RT pred'] = df1_f['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
         df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
         _, _, r_value, std_value = aux.linear_regression(df1_f['RT pred'], df1_f['RT exp'])
-        logging.info('R^2 = %f , std = %f', r_value**2, std_value)
+        logger.info('R^2 = %f , std = %f', r_value**2, std_value)
         df1['RT diff'] = df1['RT pred'] - df1['RT exp']
-        logging.info('Retention model calibrated successfully.')
+        logger.info('Retention model calibrated successfully.')
     except Exception:
-        logging.warning('Retention times are probably missing in input file.')
+        logger.warning('Retention times are probably missing in input file.')
         df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, achrom.RCs_krokhin_100A_tfa))
         df1['RT diff'] = df1['RT exp']
     return df1, decoy2set, num_psms_def
@@ -466,7 +467,7 @@ def filename(outfolder, outbasename, ftype):
     return os.path.join(outfolder, outbasename + type_suffix[ftype])
 
 def get_cat_model(df, feature_columns):
-    logging.info('Starting machine learning...')
+    logger.info('Starting machine learning...')
     train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
     x_train = get_X_array(train, feature_columns)
     y_train = get_Y_array(train)
@@ -480,19 +481,19 @@ def get_cat_model(df, feature_columns):
                                od_type='Iter', od_wait=3, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     best_iter = model.best_iteration_
-    logging.debug('Best iteration: %d', best_iter)
+    logger.debug('Best iteration: %d', best_iter)
     ln_rt = round(0.01 * best_iter / 1000, 3)
     model = CatBoostClassifier(iterations=5000, learning_rate=ln_rt, depth=8, loss_function='Logloss', eval_metric='Logloss',
                                od_type='Iter', od_wait=3, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     best_iter = model.best_iteration_
-    logging.debug('Best iteration: %d', best_iter)
+    logger.debug('Best iteration: %d', best_iter)
     X = get_X_array(df, feature_columns)
     y = get_Y_array(df)
     model = CatBoostClassifier(iterations=best_iter, learning_rate=0.01, depth=8, loss_function='Logloss', random_state=SEED, logging_level='Silent')
     model.fit(X, y)
 
-    logging.info('Machine learning is finished.')
+    logger.info('Machine learning is finished.')
 
     return model
 
@@ -537,7 +538,7 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
     df['log_score'] = np.log10(df['ML score'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
 
 def calc_qvals(df, ratio):
-    logging.debug('Q-value calculation started...')
+    logger.debug('Q-value calculation started...')
     df_t = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2',
         remove_decoy=False, formula=1, full_output=True, ratio=ratio, correction=1)
     df.loc[~df['decoy1'], 'q'] = df_t['q']
