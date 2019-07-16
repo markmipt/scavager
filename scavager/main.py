@@ -89,7 +89,7 @@ def process_files(args):
                 separate_figures=args['separate_figures'])
 
         logger.info('Union calculation complete.')
-        return 0
+    return 0
 
 
 def filter_dataframe(
