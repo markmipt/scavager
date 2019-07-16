@@ -47,7 +47,7 @@ def run():
     args = vars(parser.parse_args())
     logging.basicConfig(format='%(levelname)9s: %(asctime)s %(message)s',
             datefmt='[%H:%M:%S]', level=[logging.INFO, logging.DEBUG][args['debug']])
-    main.process_files(args)
+    return main.process_files(args)
 
 
 if __name__ == '__main__':

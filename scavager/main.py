@@ -14,16 +14,31 @@ from .utils_figures import plot_outfigures
 logger = logging.getLogger(__name__)
 
 def process_files(args):
+    """Run Scavager for multiple files (`args['file']` should be a list of file names)
+    and possibly for their union.
+
+    Parameters
+    ----------
+
+    args : dict
+        A dictionary of parameters as produced from argparse in :py:func:`search.run`.
+
+    Returns
+    -------
+    out : int
+        Exit code. 0 for success, 1 for empty (union) result, negative for errors
+        (first encountered error code is returned).
+    """
     files = args['file']
     logger.info('%d file(s) to process.', len(files))
     cargs = args.copy()
     if args['union']:
         if not args['database']:
             logger.error('--database is required with --union.')
-            return
+            return -101
     if args['create_pepxml'] and pepxmltk is None:
         logger.error('pepxmltk is required for --create-pepxml. Please install it.')
-        return
+        return -102
     if args['database']:
         decoy_prots_2 = utils.split_fasta_decoys(args['database'], args['prefix'], args['infix'])
     else:
@@ -31,9 +46,10 @@ def process_files(args):
         logger.info('Database file not provided. Decoy randomization will be done per PSM file.')
     for f in files:
         cargs['file'] = f
-        if process_file(cargs, decoy2=decoy_prots_2) == -1:
+        retv = process_file(cargs, decoy2=decoy_prots_2)
+        if retv < 0:
             logger.info('Stopping due to previous errors.')
-            return
+            return retv
     if args['union'] and len(files) > 1:
         logger.info('Starting the union calculation...')
         psm_full_dfs = []
@@ -56,7 +72,7 @@ def process_files(args):
             all_psms_f2, decoy_prots_2, args, 'PEP', calc_qvals=False)
         if peptides is None:
             logger.warning('No peptides identified in union.')
-            return 0
+            return 1
 
         logger.debug('Protein FDR in full table: %f%%', 100*aux.fdr(proteins, is_decoy='decoy2'))
 
@@ -73,6 +89,7 @@ def process_files(args):
                 separate_figures=args['separate_figures'])
 
         logger.info('Union calculation complete.')
+        return 0
 
 
 def filter_dataframe(
@@ -166,6 +183,21 @@ def write_tables(outfolder, outbasename, df1, df1_f2,
 
 
 def process_file(args, decoy2=None):
+    """Run Scavager for a single file (`args['file']` should be a single file name).
+
+    Parameters
+    ----------
+
+    args : dict
+        A dictionary of parameters as produced from argparse in :py:func:`search.run`.
+    decoy2 : set, optional
+        A set of proteins labeled as "decoy2"
+
+    Returns
+    -------
+    out : int
+        Exit code. 0 for success, 1 for empty result, negative for errors.
+    """
     fname = args['file']
     outfolder = utils.get_output_folder(args['output'], fname)
     outbasename = utils.get_output_basename(fname)
@@ -187,13 +219,13 @@ def process_file(args, decoy2=None):
         return -1
     except utils.WrongInputError:
         logger.error('Unsupported input file format. Use .pep.xml or .mzid files.')
-        return -1
+        return -2
 
     try:
         allowed_peptides, group_prefix = utils.variant_peptides(args['allowed_peptides'], args['group_prefix'])
     except ValueError as e:
         logger.error(e.args[0])
-        return -1
+        return -3
 
     df1, df1_f2 = filter_dataframe(df1, outfdr, num_psms_def,
         allowed_peptides, group_prefix, decoy_prefix, decoy_infix)
@@ -201,7 +233,7 @@ def process_file(args, decoy2=None):
     df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups = build_output_tables(
         df1, df1_f2, all_decoys_2, args)
     if df1_peptides is None:
-        return 0
+        return 1
 
     write_tables(outfolder, outbasename, df1, df1_f2, df1_peptides_f, df_proteins_f, df_protein_groups)
     if args['create_pepxml']:
@@ -212,3 +244,4 @@ def process_file(args, decoy2=None):
         plot_outfigures(df1, df1_f2[~df1_f2['decoy2']], df1_peptides, df1_peptides_f[~df1_peptides_f['decoy2']],
             outfolder, outbasename, df_proteins=df_proteins,
             df_proteins_f=df_proteins_f[~df_proteins_f['decoy2']], separate_figures=sf)
+    return 0
