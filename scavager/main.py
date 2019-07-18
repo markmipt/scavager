@@ -5,6 +5,7 @@ import ast
 
 import pandas as pd
 from pyteomics import auxiliary as aux
+from catboost import CatBoostError
 try:
     from pyteomics import pepxmltk
 except ImportError:
@@ -220,6 +221,9 @@ def process_file(args, decoy2=None):
     except utils.WrongInputError:
         logger.error('Unsupported input file format. Use .pep.xml or .mzid files.')
         return -2
+    except utils.EmptyFileError:
+        logger.error('Input file %s is empty.', fname)
+        return 1
 
     try:
         allowed_peptides, group_prefix = utils.variant_peptides(args['allowed_peptides'], args['group_prefix'])
@@ -227,8 +231,13 @@ def process_file(args, decoy2=None):
         logger.error(e.args[0])
         return -3
 
-    df1, df1_f2 = filter_dataframe(df1, outfdr, num_psms_def,
-        allowed_peptides, group_prefix, decoy_prefix, decoy_infix)
+    try:
+        df1, df1_f2 = filter_dataframe(df1, outfdr, num_psms_def,
+            allowed_peptides, group_prefix, decoy_prefix, decoy_infix)
+    except CatBoostError as e:
+        logger.error('There was an error in Catboost: %s', e.args)
+        return -4
+
 
     df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups = build_output_tables(
         df1, df1_f2, all_decoys_2, args)

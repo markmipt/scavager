@@ -22,6 +22,9 @@ class NoDecoyError(ValueError):
 class WrongInputError(NotImplementedError):
     pass
 
+class EmptyFileError(ValueError):
+    pass
+
 def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula):
     df_filtered = aux.filter(df, fdr=fdr, key=key, is_decoy=is_decoy, reverse=reverse,
         remove_decoy=remove_decoy, ratio=ratio, correction=1, formula=formula)
@@ -333,6 +336,8 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         df1 = mzid.DataFrame(infile_path)
     else:
         raise WrongInputError()
+    if not df1.shape[0]:
+        raise EmptyFileError()
 
     if 'Morpheus Score' in df1.columns:
         df1 = df1[df1['Morpheus Score'] != 0]
