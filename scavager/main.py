@@ -45,12 +45,15 @@ def process_files(args):
     else:
         decoy_prots_2 = None
         logger.info('Database file not provided. Decoy randomization will be done per PSM file.')
+    errors = 0
     for f in files:
         cargs['file'] = f
         retv = process_file(cargs, decoy2=decoy_prots_2)
-        if retv < 0:
+        if -10 < retv < 0:
             logger.info('Stopping due to previous errors.')
             return retv
+        if retv < 0:
+            errors += 1
     if args['union'] and len(files) > 1:
         logger.info('Starting the union calculation...')
         psm_full_dfs = []
@@ -90,7 +93,7 @@ def process_files(args):
                 separate_figures=args['separate_figures'])
 
         logger.info('Union calculation complete.')
-    return 0
+    return -10*errors
 
 
 def filter_dataframe(
@@ -236,7 +239,7 @@ def process_file(args, decoy2=None):
             allowed_peptides, group_prefix, decoy_prefix, decoy_infix)
     except CatBoostError as e:
         logger.error('There was an error in Catboost: %s', e.args)
-        return -4
+        return -11
 
 
     df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups = build_output_tables(
