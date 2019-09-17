@@ -70,8 +70,11 @@ def process_files(args):
             except FileNotFoundError:
                 logger.warning('File %s not found, skipping...', csvname)
         all_psms = pd.concat(psm_full_dfs)
+        logger.debug('Recovered PSMs for analysis: %s, of those: %s decoy1, %s decoy2, %s have q < %s',
+            all_psms.shape, all_psms.decoy1.sum(), all_psms.decoy2.sum(),
+            (all_psms['q'] < args['fdr'] / 100).sum(), args['fdr'] / 100)
         all_psms_f2 = all_psms[(~all_psms['decoy1']) & (all_psms['q'] < args['fdr'] / 100)]
-
+        # pep_ratio = all_psms['decoy2'].sum() / all_psms['decoy'].sum()
         peptides, peptides_f, proteins, proteins_f, protein_groups = build_output_tables(all_psms,
             all_psms_f2, decoy_prots_2, args, 'PEP', calc_qvals=False)
         if peptides is None:
@@ -96,9 +99,10 @@ def process_files(args):
     return -10*errors
 
 
-def filter_dataframe(
-    df1, outfdr, num_psms_def, allowed_peptides, group_prefix, decoy_prefix, decoy_infix):
+def filter_dataframe(df1, outfdr, num_psms_def,
+        allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix):
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
+    logger.debug('Peptide ratio for ML: %s', pep_ratio)
     utils.calc_PEP(df1, pep_ratio=pep_ratio)
     df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2',
         reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1)
@@ -111,20 +115,22 @@ def filter_dataframe(
         logger.warning('Using only default search scores for machine learning...')
         utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
 
-    if allowed_peptides or group_prefix:
+    if allowed_peptides or group_prefix or group_infix:
         prev_num = df1.shape[0]
         if allowed_peptides:
             df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
-        elif group_prefix:
+        else:
+            logger.debug('Protein column looks like this: %s', df1['protein'].iloc[0])
             df1 = df1[df1['protein'].apply(utils.is_group_specific,
-                group_prefix=group_prefix, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)]
+                group_prefix=group_prefix, group_infix=group_infix,
+                decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)]
 
         logger.info('%.1f%% of identifications were dropped during group-specific filtering.',
             (100 * float(prev_num - df1.shape[0]) / prev_num))
 
         if df1[df1['decoy']].shape[0] == 0:
             logger.warning('0 decoy identifications are present in the group. Please check'
-            'that allowed_peptides contains decoy peptides or that decoy proteins have group_prefix!')
+            'that allowed_peptides contains decoy peptides or that decoy proteins have group_prefix/infix!')
 
     df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
         reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1)
@@ -139,6 +145,7 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
         path_to_fasta = None
     outfdr = args['fdr'] / 100
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
+    logger.debug('Peptide ratio for q-value calculation: %s', pep_ratio)
 
     if calc_qvals:
         utils.calc_qvals(df1, ratio=pep_ratio)
@@ -229,14 +236,15 @@ def process_file(args, decoy2=None):
         return 1
 
     try:
-        allowed_peptides, group_prefix = utils.variant_peptides(args['allowed_peptides'], args['group_prefix'])
+        allowed_peptides, group_prefix, group_infix = utils.variant_peptides(
+            args['allowed_peptides'], args['group_prefix'], args['group_infix'])
     except ValueError as e:
         logger.error(e.args[0])
         return -3
 
     try:
         df1, df1_f2 = filter_dataframe(df1, outfdr, num_psms_def,
-            allowed_peptides, group_prefix, decoy_prefix, decoy_infix)
+            allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix)
     except CatBoostError as e:
         logger.error('There was an error in Catboost: %s', e.args)
         return -11
