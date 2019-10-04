@@ -353,7 +353,7 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         df1['spectrum'] = df1['spectrumID']
         df1['massdiff'] = (df1['experimentalMassToCharge'] - df1['calculatedMassToCharge']) * df1['assumed_charge']
         df1['calc_neutral_pep_mass'] = df1['calculatedMassToCharge'] * df1['chargeState'] - df1['chargeState'] * 1.00727649
-        df1['protein'] = df1['protein description']
+        df1['protein'] = df1['accession']
         df1['protein_descr'] = df1['protein description']
         df1['expect'] = df1['MS-GF:EValue']
 
