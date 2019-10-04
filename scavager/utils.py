@@ -29,6 +29,7 @@ def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula)
     df_filtered = aux.filter(df, fdr=fdr, key=key, is_decoy=is_decoy, reverse=reverse,
         remove_decoy=remove_decoy, ratio=ratio, correction=1, formula=formula)
     if not df_filtered.shape[0]:
+        logger.warning('No results for filtering with +1 correction. Rerunning without correction...')
         df_filtered = aux.filter(df, fdr=fdr, key=key, is_decoy=is_decoy, reverse=reverse,
             remove_decoy=remove_decoy, ratio=ratio, correction=0, formula=formula)
     return df_filtered
@@ -230,24 +231,27 @@ def is_decoy(proteins, decoy_prefix, decoy_infix=False):
     else:
         return all(decoy_infix in z for z in proteins)
 
-def is_group_specific(proteins, group_prefix, decoy_prefix, decoy_infix=False):
+def is_group_specific(proteins, group_prefix, group_infix, decoy_prefix, decoy_infix=None):
+    if group_infix:
+        return all(group_infix in z for z in proteins)
     if not decoy_infix:
         return all(z.startswith(decoy_prefix+group_prefix) or z.startswith(group_prefix) for z in proteins)
-    else:
-        return all(z.startswith(group_prefix) for z in proteins)
+    return all(z.startswith(group_prefix) for z in proteins)
 
 def is_decoy_2(proteins, decoy_set):
     return all(z in decoy_set for z in proteins)
 
 def split_fasta_decoys(db, decoy_prefix, decoy_infix=None):
-    decoy_dbnames = []
+    decoy_dbnames = set()
     with fasta.read(db) as f:
         for protein in f:
             dbname = protein.description.split()[0]
             if (decoy_infix and decoy_infix in dbname) or dbname.startswith(decoy_prefix):
-                decoy_dbnames.append(dbname)
+                decoy_dbnames.add(dbname)
     random.seed(SEED)
     all_decoys_2 = set(random.sample(decoy_dbnames, len(decoy_dbnames) // 2))
+    logger.debug('Marking %s out of %s decoys as decoy2',
+        len(all_decoys_2), len(decoy_dbnames))
     return all_decoys_2
 
 def split_decoys(df, decoy_prefix, decoy_infix=False):
@@ -326,7 +330,8 @@ def prepare_mods(df):
     for mod in all_mods:
         df[mod] = df.apply(add_mod_info, axis=1, mod=mod)
 
-def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False, fdr=0.01, decoy2set=None):
+def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False,
+        fdr=0.01, decoy2set=None):
     if not cleavage_rule:
         cleavage_rule = parser.expasy_rules['trypsin']
     if infile_path.lower().endswith('.pep.xml') or infile_path.lower().endswith('.pepxml'):
@@ -428,16 +433,16 @@ def get_features(dataframe):
     feature_columns = dataframe.columns
     columns_to_remove = []
     for feature in feature_columns:
-        if feature not in ['expect', 'hyperscore', 'calc_neutral_pep_mass', 'bscore', 'yscore', \
-                            'massdiff', 'massdiff_ppm', 'nextscore', 'RT pred', 'RT diff', \
-                            'sumI', 'RT exp', 'precursor_neutral_mass', 'massdiff_int', \
-                            'num_missed_cleavages', 'tot_num_ions', 'num_matched_ions', 'length', \
-                            'ScoreRatio', 'Energy', 'MS2IonCurrent', 'MeanErrorTop7', 'sqMeanErrorTop7', 'StdevErrorTop7', \
-                            'MS-GF:DeNovoScore', 'MS-GF:EValue', 'MS-GF:RawScore', 'MeanErrorAll', \
-                            'MeanRelErrorAll', 'MeanRelErrorTop7', 'NumMatchedMainIons', 'StdevErrorAll', \
-                            'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio', \
-                            'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio', 'fragmentMT', 'ISOWIDTHDIFF', \
-                            'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std']:
+        if feature not in ['expect', 'hyperscore', 'calc_neutral_pep_mass', 'bscore', 'yscore',
+                'massdiff', 'massdiff_ppm', 'nextscore', 'RT pred', 'RT diff',
+                'sumI', 'RT exp', 'precursor_neutral_mass', 'massdiff_int',
+                'num_missed_cleavages', 'tot_num_ions', 'num_matched_ions', 'length',
+                'ScoreRatio', 'Energy', 'MS2IonCurrent', 'MeanErrorTop7', 'sqMeanErrorTop7', 'StdevErrorTop7',
+                'MS-GF:DeNovoScore', 'MS-GF:EValue', 'MS-GF:RawScore', 'MeanErrorAll',
+                'MeanRelErrorAll', 'MeanRelErrorTop7', 'NumMatchedMainIons', 'StdevErrorAll',
+                'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio',
+                'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio', 'fragmentMT', 'ISOWIDTHDIFF',
+                'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std']:
             if not feature.startswith('mass shift'):
                 columns_to_remove.append(feature)
     feature_columns = feature_columns.drop(columns_to_remove)
@@ -449,16 +454,14 @@ def get_X_array(df, feature_columns):
 def get_Y_array(df):
     return df.loc[:, 'decoy1'].values.astype(float)
 
-def variant_peptides(allowed_peptides, group_prefix):
+def variant_peptides(allowed_peptides, group_prefix, group_infix):
     if allowed_peptides:
         with open(allowed_peptides) as f:
             allowed_peptides = set(pseq.strip().split()[0] for pseq in f)
     else:
         allowed_peptides = None
 
-    if group_prefix and allowed_peptides:
-        raise ValueError('Only one type of group filter can be used: --allowed-peptides or --group-prefix.')
-    return allowed_peptides, group_prefix
+    return allowed_peptides, group_prefix, group_infix
 
 def filename(outfolder, outbasename, ftype):
     type_suffix = {
