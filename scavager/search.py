@@ -44,12 +44,21 @@ def run():
         help='save figures as separate files')
     parser.add_argument('-u', '--union', action='store_true',
         help='Produce a summary table where IDs are pooled from all files (requires -db)')
+    correction = parser.add_mutually_exclusive_group(required=False)
+    correction.add_argument('-c', '--force-correction', action='store_true',
+        help='Force the use of "+1" correction when calculating q-values, even if it results in empty output.')
+    correction.add_argument('-nc', '--no-correction', action='store_true',
+        help='Disable the use of "+1" correction when calculating q-values, even if it results in highly inaccurate q-values.')
+    parser.add_argument('--quick-union', action='store_true',
+        help='Assume that individual files have been already processed and go straight to union calculation.')
     parser.add_argument('--debug', action='store_true', help='Enable debugging output')
     parser.add_argument('-v', '--version', action='version',
         version='%s' % (pkg_resources.require("scavager")[0], ))
     args = vars(parser.parse_args())
     logging.basicConfig(format='%(levelname)9s: %(asctime)s %(message)s',
             datefmt='[%H:%M:%S]', level=[logging.INFO, logging.DEBUG][args['debug']])
+    logger = logging.getLogger(__name__)
+    logger.debug('Starting with args: %s', args)
     return main.process_files(args)
 
 

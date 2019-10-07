@@ -25,14 +25,28 @@ class WrongInputError(NotImplementedError):
 class EmptyFileError(ValueError):
     pass
 
-def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula):
-    df_filtered = aux.filter(df, fdr=fdr, key=key, is_decoy=is_decoy, reverse=reverse,
-        remove_decoy=remove_decoy, ratio=ratio, correction=1, formula=formula)
-    if not df_filtered.shape[0]:
+def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula, correction=None):
+    kw = dict(key=key, is_decoy=is_decoy, reverse=reverse, full_output=True,
+        remove_decoy=False, ratio=ratio, formula=formula)
+    # return aux.filter(df, fdr=fdr, **kw)
+    df = df.copy()
+    q = aux.qvalues(df, correction=1, **kw)
+    q_uncorr = aux.qvalues(df, correction=0, **kw)
+    df['q'] = q['q']
+    df['q_uncorrected'] = q_uncorr['q']
+
+    if correction is not None:
+        qlabel = 'q' if correction else 'q_uncorrected'
+        logger.debug('Explicitly using %s for filtering.', qlabel)
+    elif df['q'].min() < fdr:
+        logger.info('Successfully filtered with +1 correction.')
+        qlabel = 'q'
+    else:
         logger.warning('No results for filtering with +1 correction. Rerunning without correction...')
-        df_filtered = aux.filter(df, fdr=fdr, key=key, is_decoy=is_decoy, reverse=reverse,
-            remove_decoy=remove_decoy, ratio=ratio, correction=0, formula=formula)
-    return df_filtered
+        qlabel = 'q_uncorrected'
+    if remove_decoy:
+        df = df[~df[is_decoy]]
+    return df[df[qlabel] < fdr].copy()
 
 
 def convert_tandem_cleave_rule_to_regexp(cleavage_rule):
@@ -547,26 +561,30 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
 
 def calc_qvals(df, ratio):
     logger.debug('Q-value calculation started...')
-    df_t = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2',
+    df_t_1 = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2',
         remove_decoy=False, formula=1, full_output=True, ratio=ratio, correction=1)
-    df.loc[~df['decoy1'], 'q'] = df_t['q']
+    df_t = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2',
+        remove_decoy=False, formula=1, full_output=True, ratio=ratio, correction=0)
+    df.loc[~df['decoy1'], 'q'] = df_t_1['q']
+    df.loc[~df['decoy1'], 'q_uncorrected'] = df_t['q']
     df.loc[df['decoy1'], 'q'] = None
+    df.loc[df['decoy1'], 'q_uncorrected'] = None
 
 _columns_to_output = {
-    'psm_full': ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge',
+    'psm_full': ['peptide', 'length', 'spectrum', 'q', 'q_uncorrected', 'ML score', 'modifications', 'assumed_charge',
          'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred',
          'RT diff', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2', 'PEP',
          'MS1Intensity', 'ISOWIDTHDIFF'],
-    'psm': ['peptide', 'length', 'spectrum', 'q', 'ML score', 'modifications', 'assumed_charge',
+    'psm': ['peptide', 'length', 'spectrum', 'q', 'q_uncorrected','ML score', 'modifications', 'assumed_charge',
          'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred',
          'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF'],
-    'peptide': ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'ML score', 'modifications',
+    'peptide': ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'q_uncorrected', 'ML score', 'modifications',
          'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp',
          'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF'],
-    'protein': ['dbname', 'description', 'PSMs', 'peptides', 'NSAF', 'TOP3', 'sq', 'score',
+    'protein': ['dbname', 'description', 'PSMs', 'peptides', 'NSAF', 'TOP3', 'sq', 'score', 'q', 'q_uncorrected',
          'length', 'all proteins', 'groupleader'],
     }
 
@@ -576,6 +594,7 @@ def get_columns_to_output(columns, out_type):
     labels = [label for label in order if label in present]
     if out_type == 'psm_full':
         labels.extend(present.difference(order))
+    logger.debug('Writing out %s table, q_uncorrected present: %s', out_type, 'q_uncorrected' in labels)
     return labels
 
 def calc_psms(df):

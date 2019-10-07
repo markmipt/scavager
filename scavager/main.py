@@ -46,14 +46,17 @@ def process_files(args):
         decoy_prots_2 = None
         logger.info('Database file not provided. Decoy randomization will be done per PSM file.')
     errors = 0
-    for f in files:
-        cargs['file'] = f
-        retv = process_file(cargs, decoy2=decoy_prots_2)
-        if -10 < retv < 0:
-            logger.info('Stopping due to previous errors.')
-            return retv
-        if retv < 0:
-            errors += 1
+    if not args['quick_union']:
+        for f in files:
+            cargs['file'] = f
+            retv = process_file(cargs, decoy2=decoy_prots_2)
+            if -10 < retv < 0:
+                logger.info('Stopping due to previous errors.')
+                return retv
+            if retv < 0:
+                errors += 1
+    else:
+        logger.info('Skipping individual file processing.')
     if args['union'] and len(files) > 1:
         logger.info('Starting the union calculation...')
         psm_full_dfs = []
@@ -69,12 +72,24 @@ def process_files(args):
                 psm_full_dfs.append(df)
             except FileNotFoundError:
                 logger.warning('File %s not found, skipping...', csvname)
-        all_psms = pd.concat(psm_full_dfs)
+        all_psms = pd.concat(psm_full_dfs, sort=False)
+        all_psms.reset_index(inplace=True, drop=True)
         logger.debug('Recovered PSMs for analysis: %s, of those: %s decoy1, %s decoy2, %s have q < %s',
             all_psms.shape, all_psms.decoy1.sum(), all_psms.decoy2.sum(),
             (all_psms['q'] < args['fdr'] / 100).sum(), args['fdr'] / 100)
-        all_psms_f2 = all_psms[(~all_psms['decoy1']) & (all_psms['q'] < args['fdr'] / 100)]
-        # pep_ratio = all_psms['decoy2'].sum() / all_psms['decoy'].sum()
+
+        q_label = 'q'
+        if not (args['no_correction'] or args['force_correction']):
+            logger.info('Using the corrected q-values for union.')
+            all_psms_f2 = all_psms[(~all_psms['decoy1']) & (all_psms[q_label] < args['fdr'] / 100)]
+            if not all_psms_f2.shape[0]:
+                q_label = 'q_uncorrected'
+                logger.info('No union results with correction. Disabling...')
+        if args['no_correction']:
+            q_label = 'q_uncorrected'
+        logger.debug('Filtering union PSMs by %s.', q_label)
+        all_psms_f2 = all_psms[(~all_psms['decoy1']) & (all_psms[q_label] < args['fdr'] / 100)]
+
         peptides, peptides_f, proteins, proteins_f, protein_groups = build_output_tables(all_psms,
             all_psms_f2, decoy_prots_2, args, 'PEP', calc_qvals=False)
         if peptides is None:
@@ -99,16 +114,16 @@ def process_files(args):
     return -10*errors
 
 
-def filter_dataframe(df1, outfdr, num_psms_def,
+def filter_dataframe(df1, outfdr, correction, num_psms_def,
         allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix):
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
     logger.debug('Peptide ratio for ML: %s', pep_ratio)
     utils.calc_PEP(df1, pep_ratio=pep_ratio)
     df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2',
-        reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1)
+        reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction)
     num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
     df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score',
-        is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1)
+        is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction)
     if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
         logger.warning('Machine learning works worse than default filtering: %d vs %d PSMs.',
             df1_f2.shape[0], num_psms_def)
@@ -132,8 +147,10 @@ def filter_dataframe(df1, outfdr, num_psms_def,
             logger.warning('0 decoy identifications are present in the group. Please check'
             'that allowed_peptides contains decoy peptides or that decoy proteins have group_prefix/infix!')
 
+    pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
+    logger.debug('Peptide ratio within group: %s', pep_ratio)
     df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
-        reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1)
+        reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction)
 
     return df1, df1_f2
 
@@ -144,6 +161,7 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
     else:
         path_to_fasta = None
     outfdr = args['fdr'] / 100
+    correction = False if args['no_correction'] else (args['force_correction'] or None)
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
     logger.debug('Peptide ratio for q-value calculation: %s', pep_ratio)
 
@@ -154,14 +172,15 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
         utils.calc_psms(df1)
         df1_peptides = df1.sort_values(key, ascending=True).drop_duplicates(['peptide'])
         df1_peptides_f = utils.filter_custom(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
-            key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1)
+            key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1,
+            correction=correction)
 
         df_proteins = utils.get_proteins_dataframe(df1_f2, decoy_prefix=args['prefix'],
             decoy_infix=args['infix'], all_decoys_2=decoy2, path_to_fasta=path_to_fasta)
         prot_ratio = 0.5
         df_proteins = df_proteins[~df_proteins['decoy1']]
         df_proteins_f = utils.filter_custom(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
-            reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1)
+            reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=correction)
         utils.add_protein_groups(df_proteins_f)
         df_protein_groups = df_proteins_f[df_proteins_f['groupleader']]
 
@@ -174,7 +193,7 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
 
         return df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups
     else:
-        logger.error('PSMs cannot be filtered at %s%% FDR. Please increase allowed FDR.', args['fdr'])
+        logger.warning('PSMs cannot be filtered at %s%% FDR. Please increase allowed FDR.', args['fdr'])
         return (None,) * 5
 
 
@@ -213,6 +232,8 @@ def process_file(args, decoy2=None):
     outfolder = utils.get_output_folder(args['output'], fname)
     outbasename = utils.get_output_basename(fname)
     outfdr = args['fdr'] / 100
+    correction = False if args['no_correction'] else (args['force_correction'] or None)
+    logger.debug('Operating with correction = %s', correction)
     decoy_prefix = args['prefix']
     decoy_infix = args['infix']
     sf = args['separate_figures']
@@ -243,7 +264,7 @@ def process_file(args, decoy2=None):
         return -3
 
     try:
-        df1, df1_f2 = filter_dataframe(df1, outfdr, num_psms_def,
+        df1, df1_f2 = filter_dataframe(df1, outfdr, correction, num_psms_def,
             allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix)
     except CatBoostError as e:
         logger.error('There was an error in Catboost: %s', e.args)
