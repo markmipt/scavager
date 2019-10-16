@@ -57,7 +57,7 @@ def process_files(args):
                 errors += 1
     else:
         logger.info('Skipping individual file processing.')
-    if args['union'] and len(files) > 1:
+    if args['union'] and len(files) > 1 and errors < len(files)-1:
         logger.info('Starting the union calculation...')
         psm_full_dfs = []
         for file in files:
