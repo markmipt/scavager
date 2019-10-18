@@ -378,9 +378,12 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
 
     if set(df1['protein_descr'].str[0]) == {None}:
         # MSFragger
-        protein = df1['protein'].str[0].str.split(None, 1)
-        df1['protein'] = protein.str[0].apply(lambda x: [x])
-        df1['protein_descr'] = protein.str[1].apply(lambda x: [x])
+        logger.debug('Adapting MSFragger DataFrame.')
+        logger.debug('Proteins before: %s', df1.loc[1, 'protein'])
+        protein = df1['protein'].apply(lambda row: [x.split(None, 1) for x in row])
+        df1['protein'] = protein.apply(lambda row: [x[0] for x in row])
+        df1['protein_descr'] = protein.apply(lambda row: [x[1] for x in row])
+        logger.debug('Proteins after: %s', df1.loc[1, 'protein'])
 
     df1 = df1[~pd.isna(df1['peptide'])]
     if 'MS1Intensity' not in df1:
