@@ -47,10 +47,12 @@ def process_files(args):
         decoy_prots_2 = None
         logger.info('Database file not provided. Decoy randomization will be done per PSM file.')
     errors = 0
+    retvalues = []
     if not args['quick_union']:
         for f in files:
             cargs['file'] = f
             retv = process_file(cargs, decoy2=decoy_prots_2)
+            retvalues.append(retv)
             if -10 < retv < 0:
                 logger.info('Stopping due to previous errors.')
                 return retv
@@ -58,11 +60,13 @@ def process_files(args):
                 errors += 1
     else:
         logger.info('Skipping individual file processing.')
+    if N == 1:
+        return retv
     if errors >= N-1:
         if N > 1:
             logger.info('Union will not be run because %s out of %s files were processed with errors.', errors, N)
-        return -200-errors
-    if args['union'] and N > 1 and errors < N-1:
+        return retvalues
+    if args['union']:
         logger.info('Starting the union calculation...')
         psm_full_dfs = []
         for file in files:
@@ -99,7 +103,8 @@ def process_files(args):
             all_psms_f2, decoy_prots_2, args, 'PEP', calc_qvals=False)
         if peptides is None:
             logger.warning('No peptides identified in union.')
-            return 1
+            retvalues.append(1)
+            return retvalues
 
         logger.debug('Protein FDR in full table: %f%%', 100*aux.fdr(proteins, is_decoy='decoy2'))
 
@@ -116,7 +121,8 @@ def process_files(args):
                 separate_figures=args['separate_figures'])
 
         logger.info('Union calculation complete.')
-    return -10*errors
+        retvalues.append(0)
+    return retvalues
 
 
 def filter_dataframe(df1, outfdr, correction, num_psms_def,
