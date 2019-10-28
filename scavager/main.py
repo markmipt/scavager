@@ -31,7 +31,8 @@ def process_files(args):
         (first encountered error code is returned).
     """
     files = args['file']
-    logger.info('%d file(s) to process.', len(files))
+    N = len(files)
+    logger.info('%d file(s) to process.', N)
     cargs = args.copy()
     if args['union']:
         if not args['database']:
@@ -57,7 +58,11 @@ def process_files(args):
                 errors += 1
     else:
         logger.info('Skipping individual file processing.')
-    if args['union'] and len(files) > 1 and errors < len(files)-1:
+    if errors >= N-1:
+        if N > 1:
+            logger.info('Union will not be run because %s out of %s files were processed with errors.', errors, N)
+        return -200-errors
+    if args['union'] and N > 1 and errors < N-1:
         logger.info('Starting the union calculation...')
         psm_full_dfs = []
         for file in files:
@@ -248,7 +253,7 @@ def process_file(args, decoy2=None):
             decoy_infix=decoy_infix, cleavage_rule=cleavage_rule, fdr=outfdr, decoy2set=decoy2)
     except utils.NoDecoyError:
         logger.error('No decoys were found. Please check decoy_prefix/infix parameter or your search output.')
-        return -1
+        return -12
     except utils.WrongInputError:
         logger.error('Unsupported input file format. Use .pep.xml or .mzid files.')
         return -2
