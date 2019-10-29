@@ -59,7 +59,7 @@ def run():
             datefmt='[%H:%M:%S]', level=[logging.INFO, logging.DEBUG][args['debug']])
     logger = logging.getLogger(__name__)
     logger.debug('Starting with args: %s', args)
-    return main.process_files(args)
+    main.process_files(args)
 
 
 if __name__ == '__main__':
