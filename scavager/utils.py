@@ -25,10 +25,9 @@ class WrongInputError(NotImplementedError):
 class EmptyFileError(ValueError):
     pass
 
-def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula, correction=None):
+def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula, correction=None, loglabel=None):
     kw = dict(key=key, is_decoy=is_decoy, reverse=reverse, full_output=True,
         remove_decoy=False, ratio=ratio, formula=formula)
-    # return aux.filter(df, fdr=fdr, **kw)
     df = df.copy()
     q = aux.qvalues(df, correction=1, **kw)
     q_uncorr = aux.qvalues(df, correction=0, **kw)
@@ -39,10 +38,10 @@ def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula,
         qlabel = 'q' if correction else 'q_uncorrected'
         logger.debug('Explicitly using %s for filtering.', qlabel)
     elif df['q'].min() < fdr:
-        logger.info('Successfully filtered with +1 correction.')
+        logger.debug('Successfully filtered with +1 correction (label = %s).', loglabel)
         qlabel = 'q'
     else:
-        logger.warning('No results for filtering with +1 correction. Rerunning without correction...')
+        logger.info('No results for filtering with +1 correction (label = %s). Rerunning without correction...', loglabel)
         qlabel = 'q_uncorrected'
     if remove_decoy:
         df = df[~df[is_decoy]]
@@ -344,8 +343,7 @@ def prepare_mods(df):
     for mod in all_mods:
         df[mod] = df.apply(add_mod_info, axis=1, mod=mod)
 
-def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False,
-        fdr=0.01, decoy2set=None):
+def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False, fdr=0.01, decoy2set=None):
     if not cleavage_rule:
         cleavage_rule = parser.expasy_rules['trypsin']
     if infile_path.lower().endswith('.pep.xml') or infile_path.lower().endswith('.pepxml'):
@@ -421,30 +419,26 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
     prepare_mods(df1)
 
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
-    df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False,
-        remove_decoy=False, ratio=pep_ratio, correction=1, formula=1)
-    if df1_f.shape[0] == 0:
-        df1_f = aux.filter(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2', reverse=False,
-            remove_decoy=False, ratio=pep_ratio, correction=0, formula=1)
+    df1_f = filter_custom(df1[~df1['decoy1']], fdr=fdr, key='expect', is_decoy='decoy2',
+        reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=None, loglabel='PSMs default')
     num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
     logger.info('Default target-decoy filtering, 1%% PSM FDR: Number of target PSMs = %d', num_psms_def)
     try:
         logger.info('Calibrating retention model...')
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            retention_coefficients = achrom.get_RCs_vary_lcp(df1_f['peptide'].values, \
-                                                        df1_f['RT exp'].values)
+            retention_coefficients = achrom.get_RCs_vary_lcp(df1_f['peptide'].values, df1_f['RT exp'].values)
         df1_f['RT pred'] = df1_f['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
         df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, retention_coefficients))
         _, _, r_value, std_value = aux.linear_regression(df1_f['RT pred'], df1_f['RT exp'])
-        logger.info('R^2 = %f , std = %f', r_value**2, std_value)
+        logger.info('RT model training results: R^2 = %f , std = %f', r_value**2, std_value)
         df1['RT diff'] = df1['RT pred'] - df1['RT exp']
         logger.info('Retention model calibrated successfully.')
     except Exception:
         logger.warning('Retention times are probably missing in input file.')
         df1['RT pred'] = df1['peptide'].apply(lambda x: calc_RT(x, achrom.RCs_krokhin_100A_tfa))
         df1['RT diff'] = df1['RT exp']
-    return df1, decoy2set, num_psms_def
+    return df1, decoy2set
 
 def get_features(dataframe):
     feature_columns = dataframe.columns

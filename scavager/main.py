@@ -125,19 +125,17 @@ def process_files(args):
     return retvalues
 
 
-def filter_dataframe(df1, outfdr, correction, num_psms_def,
-        allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix):
+def filter_dataframe(df1, outfdr, correction, allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix):
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
     logger.debug('Peptide ratio for ML: %s', pep_ratio)
     utils.calc_PEP(df1, pep_ratio=pep_ratio)
     df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2',
-        reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction)
+        reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction, loglabel='PSMs default')
     num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
     df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score',
-        is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction)
+        is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction, loglabel='PSMs')
     if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
-        logger.warning('Machine learning works worse than default filtering: %d vs %d PSMs.',
-            df1_f2.shape[0], num_psms_def)
+        logger.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
         logger.warning('Using only default search scores for machine learning...')
         utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
 
@@ -161,7 +159,7 @@ def filter_dataframe(df1, outfdr, correction, num_psms_def,
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
     logger.debug('Peptide ratio within group: %s', pep_ratio)
     df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score', is_decoy='decoy2',
-        reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction)
+        reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction, loglabel='PSMs in group')
 
     return df1, df1_f2
 
@@ -184,14 +182,14 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
         df1_peptides = df1.sort_values(key, ascending=True).drop_duplicates(['peptide'])
         df1_peptides_f = utils.filter_custom(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
             key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1,
-            correction=correction)
+            correction=correction, loglabel='peptides')
 
         df_proteins = utils.get_proteins_dataframe(df1_f2, decoy_prefix=args['prefix'],
             decoy_infix=args['infix'], all_decoys_2=decoy2, path_to_fasta=path_to_fasta)
         prot_ratio = 0.5
         df_proteins = df_proteins[~df_proteins['decoy1']]
         df_proteins_f = utils.filter_custom(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
-            reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=correction)
+            reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=correction, loglabel='proteins')
         utils.add_protein_groups(df_proteins_f)
         df_protein_groups = df_proteins_f[df_proteins_f['groupleader']]
 
@@ -255,7 +253,7 @@ def process_file(args, decoy2=None):
         cleavage_rule = None
 
     try:
-        df1, all_decoys_2, num_psms_def = utils.prepare_dataframe(fname, decoy_prefix=decoy_prefix,
+        df1, all_decoys_2 = utils.prepare_dataframe(fname, decoy_prefix=decoy_prefix,
             decoy_infix=decoy_infix, cleavage_rule=cleavage_rule, fdr=outfdr, decoy2set=decoy2)
     except utils.NoDecoyError:
         logger.error('No decoys were found. Please check decoy_prefix/infix parameter or your search output.')
@@ -275,7 +273,7 @@ def process_file(args, decoy2=None):
         return -3
 
     try:
-        df1, df1_f2 = filter_dataframe(df1, outfdr, correction, num_psms_def,
+        df1, df1_f2 = filter_dataframe(df1, outfdr, correction,
             allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix)
     except CatBoostError as e:
         logger.error('There was an error in Catboost: %s', e.args)
