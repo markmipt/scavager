@@ -71,7 +71,7 @@ def process_files(args):
         psm_full_dfs = []
         for file in files:
             outfolder = utils.get_output_folder(args['output'], file)
-            outbasename = utils.get_output_basename(file)
+            outbasename = utils.get_output_basename(file, args['name_suffix'])
             csvname = utils.filename(outfolder, outbasename, 'psm_full')
             try:
                 df = pd.read_csv(csvname, sep='\t')
@@ -108,7 +108,7 @@ def process_files(args):
 
         logger.debug('Protein FDR in full table: %f%%', 100*aux.fdr(proteins, is_decoy='decoy2'))
 
-        write_tables(outfolder, 'union', all_psms, all_psms_f2, peptides_f, proteins_f, protein_groups)
+        write_tables(outfolder, 'union' + args['name_suffix'], all_psms, all_psms_f2, peptides_f, proteins_f, protein_groups)
         if args['create_pepxml']:
             pepxmltk.easy_write_pepxml(files, utils.filename(outfolder, 'union', 'pepxml'),
             set(all_psms_f2.loc[~all_psms_f2['decoy2'], 'spectrum']))
@@ -116,7 +116,7 @@ def process_files(args):
         if len(all_psms_f2[~all_psms_f2['decoy2']]) >= 3:
             plot_outfigures(all_psms, all_psms_f2[~all_psms_f2['decoy2']], peptides,
                 peptides_f[~peptides_f['decoy2']],
-                outfolder, 'union', df_proteins=proteins,
+                outfolder, 'union' + args['name_suffix'], df_proteins=proteins,
                 df_proteins_f=proteins_f[~proteins_f['decoy2']],
                 separate_figures=args['separate_figures'])
 
@@ -239,7 +239,7 @@ def process_file(args, decoy2=None):
     """
     fname = args['file']
     outfolder = utils.get_output_folder(args['output'], fname)
-    outbasename = utils.get_output_basename(fname)
+    outbasename = utils.get_output_basename(fname, args['name_suffix'])
     outfdr = args['fdr'] / 100
     correction = False if args['no_correction'] else (args['force_correction'] or None)
     logger.debug('Operating with correction = %s', correction)

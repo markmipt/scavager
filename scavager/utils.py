@@ -216,13 +216,13 @@ def calc_sq(df_raw):
                     psq[j + y] = True
     return float(sum(psq)) / len(psq) * 100
 
-def get_output_basename(fname):
+def get_output_basename(fname, suffix=''):
     basename = os.path.basename(fname)
     splt = os.path.splitext(basename)
     basename = splt[0]
     if 'pep' not in splt[1].lower():
         basename = os.path.splitext(basename)[0]
-    return basename
+    return basename + suffix
 
 def get_output_folder(folder, fname):
     if not folder:
