@@ -128,16 +128,20 @@ def process_files(args):
 def filter_dataframe(df1, outfdr, correction, allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix):
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
     logger.debug('Peptide ratio for ML: %s', pep_ratio)
-    utils.calc_PEP(df1, pep_ratio=pep_ratio)
     df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2',
         reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction, loglabel='PSMs default')
     num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
-    df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score',
-        is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction, loglabel='PSMs')
-    if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
-        logger.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
-        logger.warning('Using only default search scores for machine learning...')
+    if num_psms_def < 100:
+        logger.warning('Not enough statistics for ML training (%d PSMs is less than 100).', num_psms_def)
         utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
+    else:
+        utils.calc_PEP(df1, pep_ratio=pep_ratio)
+        df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score',
+            is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction, loglabel='PSMs')
+        if df1_f2[~df1_f2['decoy2']].shape[0] < num_psms_def:
+            logger.warning('Machine learning works worse than default filtering: %d vs %d PSMs.', df1_f2.shape[0], num_psms_def)
+            logger.warning('Using only default search scores for machine learning...')
+            utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
 
     if allowed_peptides or group_prefix or group_infix:
         prev_num = df1.shape[0]
