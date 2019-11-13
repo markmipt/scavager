@@ -49,7 +49,7 @@ def run():
         help='Force the use of "+1" correction when calculating q-values, even if it results in empty output.')
     correction.add_argument('-nc', '--no-correction', action='store_true',
         help='Disable the use of "+1" correction when calculating q-values, even if it results in highly inaccurate q-values.')
-    parser.add_argument('--quick-union', action='store_true',
+    parser.add_argument('-q', '--quick-union', action='store_true',
         help='Assume that individual files have been already processed and go straight to union calculation.')
     parser.add_argument('--name-suffix', nargs='?', default='',
         help='Suffix to add to all created file names to avoid possible name clashes.')
