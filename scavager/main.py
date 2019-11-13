@@ -66,7 +66,7 @@ def process_files(args):
         if N > 1:
             logger.info('Union will not be run because %s out of %s files were processed with errors.', errors, N)
         return retvalues
-    if args['union']:
+    if args['union'] or args['quick_union']:
         logger.info('Starting the union calculation...')
         psm_full_dfs = []
         for file in files:
