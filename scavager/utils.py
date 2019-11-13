@@ -594,6 +594,6 @@ def get_columns_to_output(columns, out_type):
     logger.debug('Writing out %s table, q_uncorrected present: %s', out_type, 'q_uncorrected' in labels)
     return labels
 
-def calc_psms(df):
-    peptides = Counter(df['peptide'])
-    df['#PSMs'] = df['peptide'].apply(lambda x: peptides.get(x))
+def calc_psms(df, df_filt):
+    peptides = Counter(df_filt['peptide'])
+    df['#PSMs'] = df['peptide'].apply(lambda x: peptides.get(x, 0))

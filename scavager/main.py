@@ -182,7 +182,7 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
         utils.calc_qvals(df1, ratio=pep_ratio)
 
     if df1_f2.shape[0]:
-        utils.calc_psms(df1)
+        utils.calc_psms(df1, df1_f2)
         df1_peptides = df1.sort_values(key, ascending=True).drop_duplicates(['peptide'])
         df1_peptides_f = utils.filter_custom(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
             key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1,
