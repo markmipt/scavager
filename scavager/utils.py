@@ -261,6 +261,7 @@ def split_fasta_decoys(db, decoy_prefix, decoy_infix=None):
             dbname = protein.description.split()[0]
             if (decoy_infix and decoy_infix in dbname) or dbname.startswith(decoy_prefix):
                 decoy_dbnames.add(dbname)
+    decoy_dbnames = sorted(decoy_dbnames)
     random.seed(SEED)
     all_decoys_2 = set(random.sample(decoy_dbnames, len(decoy_dbnames) // 2))
     logger.debug('Marking %s out of %s decoys as decoy2',
@@ -273,7 +274,7 @@ def split_decoys(df, decoy_prefix, decoy_infix=False):
         for dbname in proteins[0]:
             if (not decoy_infix and dbname.startswith(decoy_prefix)) or (decoy_infix and decoy_infix in dbname):
                 all_decoys.add(dbname)
-    all_decoys = sorted(list(all_decoys)) # sort is done for working of random SEED
+    all_decoys = sorted(all_decoys) # sort is done for working of random SEED
     random.seed(SEED)
     all_decoys_2 = set(random.sample(all_decoys, int(len(all_decoys)/2)))
     df['decoy2'] = df['protein'].apply(is_decoy_2, decoy_set=all_decoys_2)
