@@ -126,11 +126,16 @@ def process_files(args):
 
 
 def filter_dataframe(df1, outfdr, correction, allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix):
-    pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
-    logger.debug('Peptide ratio for ML: %s', pep_ratio)
+    d2 = df1['decoy2'].sum()
+    d = df1['decoy'].sum()
+    pep_ratio = d2 / d
+    logger.debug('Peptide ratio for ML: %s (%s / %s)', pep_ratio, d2, d)
     df1_f = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='expect', is_decoy='decoy2',
         reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1, correction=correction, loglabel='PSMs default')
     num_psms_def = df1_f[~df1_f['decoy2']].shape[0]
+    if not num_psms_def:
+        logger.warning('No valid PSMs at all are found at %s%% FDR. Aborting the analysis.', 100 * outfdr)
+        return df1, None
     if num_psms_def < 100:
         logger.warning('Not enough statistics for ML training (%d PSMs is less than 100).', num_psms_def)
         utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
@@ -283,7 +288,8 @@ def process_file(args, decoy2=None):
         logger.error('There was an error in Catboost: %s', e.args)
         return -11
 
-
+    if df1_f2 is None:
+        return 1
     df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups = build_output_tables(
         df1, df1_f2, all_decoys_2, args)
     if df1_peptides is None:
