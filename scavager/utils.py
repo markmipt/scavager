@@ -543,6 +543,7 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
     if rbin_s and abs((rbin - rbin_s) / rbin_s) > 1.0:
         rbin = rbin_s * 1.05
     rbin += 1.5 * binsize
+    logger.debug('cbins: lbin = %s, rbin = %s, binsize = %s', lbin, rbin, binsize)
     cbins = np.arange(lbin, rbin + 2 * binsize, binsize)
 
     H1, b1 = np.histogram(df0_d['ML score'].values, bins=cbins)

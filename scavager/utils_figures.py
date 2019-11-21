@@ -251,6 +251,11 @@ def get_fdbinsize(data_list):
     iqr = upperquartile - lowerquartile
     logger.debug('IQR: %s, data size: %s', iqr, len(data_list))
     optimal_bin_size = 2. * iqr / len(data_list) ** (1. / 3.)
+    logger.debug('Calculated optimal bin size: %s.', optimal_bin_size)
+    MINBIN = 1e-8
+    if optimal_bin_size < MINBIN:
+        logger.debug('Increasing bin size to %s.', MINBIN)
+        return MINBIN
     return optimal_bin_size
 
 def normalize_fname(s):
