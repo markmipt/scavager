@@ -55,23 +55,32 @@ def plot_hist_basic(array_all, array_valid, fig, subplot_max_x, subplot_i,
         plt.close()
 
 def plot_basic_figures(df, df_f, fig, subplot_max_x, subplot_start, idtype):
+    logger.debug('Plotting %s figures...', idtype)
+    logger.debug('Getting basic distributions (all)')
     mz_array, rt_exp_array, lengths_array = get_basic_distributions(df)
+    logger.debug('Getting basic distributions (filtered)')
     mz_array_valid, rt_exp_array_valid, lengths_array_valid = get_basic_distributions(df_f)
 
+    logger.debug('Plotting %s m/z distributions.', idtype)
     plot_hist_basic(mz_array, mz_array_valid, fig, subplot_max_x, subplot_i=subplot_start,
                      xlabel='%s, precursor m/z' % (idtype, ))
     subplot_start += 1
+    logger.debug('Plotting %s RT distributions.', idtype)
     plot_hist_basic(rt_exp_array, rt_exp_array_valid, fig, subplot_max_x, subplot_i=subplot_start,
                      xlabel='%s, RT experimental' % (idtype, ))
     subplot_start += 1
+    logger.debug('Plotting %s length distributions.', idtype)
     plot_hist_basic(lengths_array, lengths_array_valid, fig, subplot_max_x, subplot_i=subplot_start,
                      xlabel='%s, peptide length' % (idtype, ), bin_size_one=True)
 
 def plot_protein_figures(df, df_f, fig, subplot_max_x, subplot_start):
+    logger.debug('Plotting protein figures: NSAF')
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='LOG10_NSAF'), fig, subplot_max_x, subplot_start, xlabel='LOG10(NSAF)')
+    logger.debug('Plotting protein figures: SQ')
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='sq'), fig, subplot_max_x, subplot_start+1, xlabel='sequence coverage')
 
 def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel='# of identifications'):
+    logger.debug('Plotting descriptor histograms...')
     separate_figures = _get_sf(fig)
     if separate_figures:
         plt.figure()
