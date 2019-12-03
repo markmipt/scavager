@@ -254,7 +254,11 @@ def get_fdbinsize(data_list):
     Returns:
     optimal_bin_size:  F-D bin size
     """
-    data_list = np.sort(data_list)
+    if not isinstance(data_list, np.ndarray):
+        data_list = np.array(data_list)
+    isnan = np.isnan(data_list)
+    logger.debug('Number of nans: %s', isnan.sum())
+    data_list = np.sort(data_list[~isnan])
     upperquartile = scoreatpercentile(data_list, 75)
     lowerquartile = scoreatpercentile(data_list, 25)
     iqr = upperquartile - lowerquartile
