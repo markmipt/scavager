@@ -80,7 +80,7 @@ def plot_protein_figures(df, df_f, fig, subplot_max_x, subplot_start):
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='sq'), fig, subplot_max_x, subplot_start+1, xlabel='sequence coverage')
 
 def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel='# of identifications'):
-    logger.debug('Plotting descriptor histograms...')
+    logger.debug('Plotting descriptor histogram: %s', xlabel)
     separate_figures = _get_sf(fig)
     if separate_figures:
         plt.figure()
@@ -235,6 +235,7 @@ def get_bins_for_descriptors(inarrays):
     # binsize = get_fdbinsize(tmp)
     if binsize < float(maxv - minv) / 300:
         binsize = float(maxv - minv) / 300
+
     lbin_s = scoreatpercentile(tmp, 1.0)
     lbin = minv
     if lbin_s and abs((lbin - lbin_s) / lbin_s) > 1.0:
@@ -244,6 +245,7 @@ def get_bins_for_descriptors(inarrays):
     if rbin_s and abs((rbin - rbin_s) / rbin_s) > 1.0:
         rbin = rbin_s * 1.05
     rbin += 1.5 * binsize
+    logger.debug('get_bins_for_descriptors: lbin = %s, rbin = %s, binsize = %s', lbin, rbin, binsize)
     return np.arange(lbin, rbin + binsize, binsize), binsize
 
 def get_fdbinsize(data_list):
