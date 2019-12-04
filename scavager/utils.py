@@ -288,7 +288,7 @@ def remove_column_hit_rank(df):
         return df
 
 def parse_mods(df_raw):
-    mods_counter = Counter()
+    mods_counter = {}
     sequence, mods = df_raw['peptide'], df_raw['modifications']
     if isinstance(mods, list):
         for mod in mods:
@@ -305,11 +305,11 @@ def parse_mods(df_raw):
                 aa = sequence[aa_ind-1]
                 mod_mass = round(mod_mass - mass.std_aa_mass[aa], 3)
             mod_name = 'mass shift %.3f at %s' % (mod_mass, aa)
-            mods_counter[mod_name] += 1
+            mods_counter[mod_name] = mods_counter.get(mod_name, 0) + 1
     return mods_counter
 
 def parse_mods_msgf(df_raw):
-    mods_counter = Counter()
+    mods_counter = {}
     sequence, mods = df_raw['peptide'], df_raw['Modification']
     if isinstance(mods, list):
         for mod in mods:
@@ -324,7 +324,7 @@ def parse_mods_msgf(df_raw):
                 aa = sequence[aa_ind-1]
                 mod_mass = round(mod_mass, 3)
             mod_name = 'mass shift %.3f at %s' % (mod_mass, aa)
-            mods_counter[mod_name] += 1
+            mods_counter[mod_name] = mods_counter.get(mod_name, 0) + 1
     return mods_counter
 
 

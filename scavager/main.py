@@ -34,9 +34,9 @@ def process_files(args):
     N = len(files)
     logger.info('%d file(s) to process.', N)
     cargs = args.copy()
-    if args['union']:
+    if args['union'] or args['quick_union']:
         if not args['database']:
-            logger.error('--database is required with --union.')
+            logger.error('--database is required for union calculation.')
             return -101
     if args['create_pepxml'] and pepxmltk is None:
         logger.error('pepxmltk is required for --create-pepxml. Please install it.')
@@ -76,7 +76,7 @@ def process_files(args):
             try:
                 df = pd.read_csv(csvname, sep='\t')
                 for key in ['protein', 'peptide_next_aa', 'peptide_prev_aa', 'num_tol_term',
-                'protein_descr', 'modifications']:
+                'protein_descr', 'modifications', 'mods_counter']:
                     df[key] = df[key].apply(ast.literal_eval)
                 psm_full_dfs.append(df)
             except FileNotFoundError:
@@ -86,7 +86,7 @@ def process_files(args):
         logger.debug('Recovered PSMs for analysis: %s, of those: %s decoy1, %s decoy2, %s have q < %s',
             all_psms.shape, all_psms.decoy1.sum(), all_psms.decoy2.sum(),
             (all_psms['q'] < args['fdr'] / 100).sum(), args['fdr'] / 100)
-
+        utils.prepare_mods(all_psms)
         q_label = 'q'
         if not (args['no_correction'] or args['force_correction']):
             logger.info('Using the corrected q-values for union.')
