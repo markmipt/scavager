@@ -381,7 +381,10 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         logger.debug('Proteins before: %s', df1.loc[1, 'protein'])
         protein = df1['protein'].apply(lambda row: [x.split(None, 1) for x in row])
         df1['protein'] = protein.apply(lambda row: [x[0] for x in row])
-        df1['protein_descr'] = protein.apply(lambda row: [x[1] for x in row])
+        try:
+            df1['protein_descr'] = protein.apply(lambda row: [x[1] for x in row])
+        except IndexError:
+            df1['protein_descr'] = ''
         logger.debug('Proteins after: %s', df1.loc[1, 'protein'])
 
     df1 = df1[~pd.isna(df1['peptide'])]
