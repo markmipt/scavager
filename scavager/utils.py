@@ -384,7 +384,7 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         try:
             df1['protein_descr'] = protein.apply(lambda row: [x[1] for x in row])
         except IndexError:
-            df1['protein_descr'] = ''
+            df1['protein_descr'] = protein.apply(lambda row: ['' for x in row])
         logger.debug('Proteins after: %s', df1.loc[1, 'protein'])
 
     df1 = df1[~pd.isna(df1['peptide'])]
