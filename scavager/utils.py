@@ -11,6 +11,7 @@ from collections import Counter, defaultdict
 from .utils_figures import get_fdbinsize
 from scipy.stats import scoreatpercentile
 from sklearn.isotonic import IsotonicRegression
+from scipy.stats import binom
 import logging
 import warnings
 warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
@@ -374,9 +375,14 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         df1['protein'] = df1['accession']
         df1['protein_descr'] = df1['protein description']
         df1['expect'] = df1['MS-GF:EValue']
+        # df1['expect'] = -df1['MS-GF:RawScore'].values
+        # df1['MS-GF:EValue'] = df1['MS-GF:RawScore']
+
 
     if set(df1['protein_descr'].str[0]) == {None}:
         # MSFragger
+   
+
         logger.debug('Adapting MSFragger DataFrame.')
         logger.debug('Proteins before: %s', df1.loc[1, 'protein'])
         protein = df1['protein'].apply(lambda row: [x.split(None, 1) for x in row])
@@ -384,8 +390,17 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         try:
             df1['protein_descr'] = protein.apply(lambda row: [x[1] for x in row])
         except IndexError:
-            df1['protein_descr'] = ''
+            df1['protein_descr'] = protein.apply(lambda row: ['' for x in row])
         logger.debug('Proteins after: %s', df1.loc[1, 'protein'])
+
+    # if any(None in set(df1['protein_descr'].str[0])):
+    #     print('HERE')
+    #     df1['protein_descr'] = df1.apply(lambda x: x['protein_descr'] if x['protein_descr'] else x['protein'], axis=1)
+    df1.loc[pd.isna(df1['protein_descr']), 'protein_descr'] = df1.loc[pd.isna(df1['protein_descr']), 'protein']
+    # try:
+    #     df1['expect'] = 1.0 / df1['bions_score_neg'].values
+    # except:
+    #     pass
 
     df1 = df1[~pd.isna(df1['peptide'])]
     if 'MS1Intensity' not in df1:
@@ -448,7 +463,8 @@ def get_features(dataframe):
     feature_columns = dataframe.columns
     columns_to_remove = []
     for feature in feature_columns:
-        if feature not in ['expect', 'hyperscore', 'calc_neutral_pep_mass', 'bscore', 'yscore',
+        # if feature not in ['expect', 'hyperscore', 'calc_neutral_pep_mass', 'bscore', 'yscore',
+        if feature not in ['calc_neutral_pep_mass', 'bscore', 'yscore',
                 'massdiff', 'massdiff_ppm', 'nextscore', 'RT pred', 'RT diff',
                 'sumI', 'RT exp', 'precursor_neutral_mass', 'massdiff_int',
                 'num_missed_cleavages', 'tot_num_ions', 'num_matched_ions', 'length',
@@ -457,8 +473,14 @@ def get_features(dataframe):
                 'MeanRelErrorAll', 'MeanRelErrorTop7', 'NumMatchedMainIons', 'StdevErrorAll',
                 'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio',
                 'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio', 'fragmentMT', 'ISOWIDTHDIFF',
-                'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std']:
-            if not feature.startswith('mass shift'):
+                'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'IPGF2', 'hyperscore']:#, 'IPGF3']:
+                # 'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'IPGF2']:#, 'IPGF3']:
+                # 'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'hyperscore']:#, 'IPGF3']:
+                #'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std']:#, 'IPGF', 'hyperscore']:#, 'IPGF3']:
+                # 'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'hyperscore']:#, 'IPGF3']:
+                #'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'hyperscore']:#, 'IPGF3']:
+                #'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF']:#, 'IPGF3']:
+            if not feature.startswith('mass shift') and not feature.startswith('matched_y') and not feature.startswith('matched_b'):
                 columns_to_remove.append(feature)
     feature_columns = feature_columns.drop(columns_to_remove)
     return sorted(feature_columns)
@@ -491,6 +513,14 @@ def filename(outfolder, outbasename, ftype):
 
 def get_cat_model(df, feature_columns):
     logger.info('Starting machine learning...')
+
+    # logger.info(df.shape)
+    # df['orig_spectrum'] = df['spectrum'].apply(lambda x: x.split('.')[-3])
+    # df['massdiff_abs'] = df['massdiff'].abs()
+    # df = df.sort_values(by='massdiff_abs')
+    # df = df.drop_duplicates(subset = ['orig_spectrum', 'peptide'])
+    # logger.info(df.shape)
+
     train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
     x_train = get_X_array(train, feature_columns)
     y_train = get_Y_array(train)
@@ -500,21 +530,25 @@ def get_cat_model(df, feature_columns):
     # model = CatBoostClassifier(iterations=1000, learning_rate=0.05, depth=10, loss_function='Logloss', logging_level='Silent', random_seed=SEED)
     # model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
 
-    model = CatBoostClassifier(iterations=5000, learning_rate=0.01, depth=8, loss_function='Logloss', eval_metric='Logloss',
-                               od_type='Iter', od_wait=3, random_state=SEED, logging_level='Silent')
+    model = CatBoostClassifier(iterations=10000, learning_rate=0.01, depth=8, loss_function='Logloss', eval_metric='Logloss',
+                               od_type='Iter', od_wait=33, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     best_iter = model.best_iteration_
-    logger.debug('Best iteration: %d', best_iter)
-    ln_rt = round(0.01 * best_iter / 1000, 3)
-    model = CatBoostClassifier(iterations=5000, learning_rate=ln_rt, depth=8, loss_function='Logloss', eval_metric='Logloss',
-                               od_type='Iter', od_wait=3, random_state=SEED, logging_level='Silent')
+    logger.info('Best iteration: %d', best_iter)
+    ln_rt = max(0.001, round(0.01 * best_iter / 1000, 3))
+    model = CatBoostClassifier(iterations=10000, learning_rate=ln_rt, depth=8, loss_function='Logloss', eval_metric='Logloss',
+                               od_type='Iter', od_wait=33, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     best_iter = model.best_iteration_
-    logger.debug('Best iteration: %d', best_iter)
+    logger.info('Best iteration: %d', best_iter)
     X = get_X_array(df, feature_columns)
     y = get_Y_array(df)
-    model = CatBoostClassifier(iterations=best_iter, learning_rate=0.01, depth=8, loss_function='Logloss', random_state=SEED, logging_level='Silent')
+    model = CatBoostClassifier(iterations=int(best_iter*1.0/0.7), learning_rate=ln_rt, depth=8, loss_function='Logloss', random_state=SEED, logging_level='Silent')
     model.fit(X, y)
+    for fi, fn in sorted(zip(model.feature_importances_, feature_columns), key=lambda x: x[0])[::-1]:
+        print(fi, fn)
+    # for f1, f2 in zip(model._feature_impor)
+    # logger.info()
 
     logger.info('Machine learning is finished.')
 
