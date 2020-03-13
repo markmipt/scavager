@@ -18,7 +18,7 @@ import re
 import sys
 import logging
 logger = logging.getLogger(__name__)
-
+logging.getLogger('matplotlib.font_manager').disabled = True
 redcolor = '#FC6264'
 bluecolor = '#70aed1'
 greencolor = '#8AA413'
@@ -26,17 +26,20 @@ greencolor = '#8AA413'
 def _get_sf(fig):
     return isinstance(fig, str) if sys.version_info.major == 3 else isinstance(fig, basestring)
 
+
 def get_basic_distributions(df):
     mz_array = ((df['calc_neutral_pep_mass'] + df['assumed_charge'] * 1.007276 ) / df['assumed_charge']).values
     rt_exp_array = (df['RT exp']).values
     lengths_array = df['length'].values
     return mz_array, rt_exp_array, lengths_array
 
+
 def get_descriptor_array(df, df_f, dname):
     array_t = df[~df['decoy']][dname].values
     array_d = df[df['decoy']][dname].values
     array_v = df_f[dname].values
     return array_t, array_d, array_v
+
 
 def plot_hist_basic(array_all, array_valid, fig, subplot_max_x, subplot_i,
         xlabel, ylabel='# of identifications', bin_size_one=False):
@@ -53,6 +56,7 @@ def plot_hist_basic(array_all, array_valid, fig, subplot_max_x, subplot_i,
     if separate_figures:
         plt.savefig(outpath(fig, xlabel, '.png'))
         plt.close()
+
 
 def plot_basic_figures(df, df_f, fig, subplot_max_x, subplot_start, idtype):
     logger.debug('Plotting %s figures...', idtype)
@@ -73,11 +77,13 @@ def plot_basic_figures(df, df_f, fig, subplot_max_x, subplot_start, idtype):
     plot_hist_basic(lengths_array, lengths_array_valid, fig, subplot_max_x, subplot_i=subplot_start,
                      xlabel='%s, peptide length' % (idtype, ), bin_size_one=True)
 
+
 def plot_protein_figures(df, df_f, fig, subplot_max_x, subplot_start):
     logger.debug('Plotting protein figures: NSAF')
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='LOG10_NSAF'), fig, subplot_max_x, subplot_start, xlabel='LOG10(NSAF)')
     logger.debug('Plotting protein figures: SQ')
     plot_hist_descriptor(get_descriptor_array(df, df_f, dname='sq'), fig, subplot_max_x, subplot_start+1, xlabel='sequence coverage')
+
 
 def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel='# of identifications'):
     logger.debug('Plotting descriptor histogram: %s', xlabel)
@@ -112,6 +118,7 @@ def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel
         plt.savefig(outpath(fig, xlabel, '.png'))
         plt.close()
 
+
 def plot_legend(fig, subplot_max_x, subplot_start):
     ax = fig.add_subplot(subplot_max_x, 3, subplot_start)
     legend_elements = [Patch(facecolor=greencolor, edgecolor='r',
@@ -122,6 +129,7 @@ def plot_legend(fig, subplot_max_x, subplot_start):
                             label='Decoys')]
     ax.legend(handles=legend_elements, loc='center', prop={'size': 24})
     ax.set_axis_off()
+
 
 def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
     separate_figures = _get_sf(fig)
@@ -212,6 +220,7 @@ def plot_descriptors_figures(df, df_f, fig, subplot_max_x, subplot_start):
         plot_legend(fig, subplot_max_x, subplot_start)
     subplot_start += 1
 
+
 def get_bins(inarrays, bin_size_one=False):
     tmp = np.concatenate(inarrays)
     minv = tmp.min()
@@ -220,6 +229,7 @@ def get_bins(inarrays, bin_size_one=False):
         return np.arange(minv, maxv+1, 1)
     else:
         return np.linspace(minv, maxv+1, num=100)
+
 
 def get_bins_for_descriptors(inarrays):
     tmp = np.concatenate(inarrays)
@@ -248,6 +258,7 @@ def get_bins_for_descriptors(inarrays):
     logger.debug('get_bins_for_descriptors: lbin = %s, rbin = %s, binsize = %s', lbin, rbin, binsize)
     return np.arange(lbin, rbin + binsize, binsize), binsize
 
+
 def get_fdbinsize(data_list):
     """Calculates the Freedman-Diaconis bin size for
     a data set for use in making a histogram
@@ -273,11 +284,14 @@ def get_fdbinsize(data_list):
         return MINBIN
     return optimal_bin_size
 
+
 def normalize_fname(s):
     return re.sub(r'[<>:\|/?*]', '', s)
 
+
 def outpath(outfolder, s, ext='.png'):
     return os.path.join(outfolder, normalize_fname(s) + ext)
+
 
 def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename, df_proteins, df_proteins_f, separate_figures=False):
     if not separate_figures:

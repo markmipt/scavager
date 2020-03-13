@@ -381,7 +381,7 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
 
     if set(df1['protein_descr'].str[0]) == {None}:
         # MSFragger
-   
+
 
         logger.debug('Adapting MSFragger DataFrame.')
         logger.debug('Proteins before: %s', df1.loc[1, 'protein'])
@@ -545,10 +545,9 @@ def get_cat_model(df, feature_columns):
     y = get_Y_array(df)
     model = CatBoostClassifier(iterations=int(best_iter*1.0/0.7), learning_rate=ln_rt, depth=8, loss_function='Logloss', random_state=SEED, logging_level='Silent')
     model.fit(X, y)
+    logger.debug('Feature importance:')
     for fi, fn in sorted(zip(model.feature_importances_, feature_columns), key=lambda x: x[0])[::-1]:
-        print(fi, fn)
-    # for f1, f2 in zip(model._feature_impor)
-    # logger.info()
+        logger.debug('%s: %s', fi, fn)
 
     logger.info('Machine learning is finished.')
 
