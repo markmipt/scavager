@@ -161,10 +161,10 @@ def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
     for aa in sorted(std_aa_list):
         if aa_theor.get(aa, 0):
             lbls.append(aa)
-            vals.append((aa_exp.get(aa, 0)/aa_exp_sum)/(aa_theor.get(aa, 0)/aa_theor_sum))
-    std_val = np.std(vals)
-    clrs = [greencolor if abs(x-1)<=2*std_val else redcolor for x in vals]
-    plt.bar(range(len(vals)), vals, color=clrs)
+            vals.append((aa_exp.get(aa, 0)/aa_exp_sum) / (aa_theor[aa]/aa_theor_sum))
+    # std_val = np.std(vals)
+    clrs = [bluecolor if abs(x-1) < 0.4 else redcolor for x in vals]
+    plt.bar(range(len(vals)), vals, color='white', edgecolor=clrs, lw=4)
     plt.xticks(range(len(lbls)), lbls)
     plt.hlines(1.0, range(len(vals))[0]-1, range(len(vals))[-1]+1)
     plt.ylabel('amino acid ID rate')
