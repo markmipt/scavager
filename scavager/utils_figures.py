@@ -22,6 +22,8 @@ logging.getLogger('matplotlib.font_manager').disabled = True
 redcolor = '#FC6264'
 bluecolor = '#70aed1'
 greencolor = '#8AA413'
+aa_color_1 = '#fca110'
+aa_color_2 = '#a41389'
 
 def _get_sf(fig):
     return isinstance(fig, str) if sys.version_info.major == 3 else isinstance(fig, basestring)
@@ -121,12 +123,9 @@ def plot_hist_descriptor(inarrays, fig, subplot_max_x, subplot_i, xlabel, ylabel
 
 def plot_legend(fig, subplot_max_x, subplot_start):
     ax = fig.add_subplot(subplot_max_x, 3, subplot_start)
-    legend_elements = [Patch(facecolor=greencolor, edgecolor='r',
-                            label='Positive IDs'),
-                    Patch(facecolor=bluecolor, edgecolor='r',
-                            label='Targets'),
-                    Patch(facecolor=redcolor, edgecolor='r',
-                            label='Decoys')]
+    legend_elements = [Patch(facecolor=greencolor, label='Positive IDs'),
+                    Patch(facecolor=bluecolor, label='Targets'),
+                    Patch(facecolor=redcolor, label='Decoys')]
     ax.legend(handles=legend_elements, loc='center', prop={'size': 24})
     ax.set_axis_off()
 
@@ -163,8 +162,8 @@ def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
             lbls.append(aa)
             vals.append((aa_exp.get(aa, 0)/aa_exp_sum) / (aa_theor[aa]/aa_theor_sum))
     # std_val = np.std(vals)
-    clrs = [bluecolor if abs(x-1) < 0.4 else redcolor for x in vals]
-    plt.bar(range(len(vals)), vals, color='white', edgecolor=clrs, lw=4)
+    clrs = [aa_color_1 if abs(x-1) < 0.4 else aa_color_2 for x in vals]
+    plt.bar(range(len(vals)), vals, color=clrs)
     plt.xticks(range(len(lbls)), lbls)
     plt.hlines(1.0, range(len(vals))[0]-1, range(len(vals))[-1]+1)
     plt.ylabel('amino acid ID rate')
