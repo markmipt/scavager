@@ -564,13 +564,13 @@ def get_cat_model(df, feature_columns):
                                od_type='Iter', od_wait=33, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     best_iter = model.best_iteration_
-    logger.info('Best iteration: %d', best_iter)
+    logger.debug('Best iteration: %d', best_iter)
     ln_rt = max(0.001, round(0.01 * best_iter / 1000, 3))
     model = CatBoostClassifier(iterations=10000, learning_rate=ln_rt, depth=8, loss_function='Logloss', eval_metric='Logloss',
                                od_type='Iter', od_wait=33, random_state=SEED, logging_level='Silent')
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     best_iter = model.best_iteration_
-    logger.info('Best iteration: %d', best_iter)
+    logger.debug('Best iteration: %d', best_iter)
     X = get_X_array(df, feature_columns)
     y = get_Y_array(df)
     model = CatBoostClassifier(iterations=int(best_iter*1.0/0.7), learning_rate=ln_rt, depth=8, loss_function='Logloss', random_state=SEED, logging_level='Silent')
