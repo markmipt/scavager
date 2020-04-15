@@ -324,3 +324,4 @@ def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename
     if not separate_figures:
         plt.savefig(os.path.join(outfolder, outbasename) + '.png')
         plt.close()
+    logger.info('Figures saved.')

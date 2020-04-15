@@ -207,7 +207,7 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
         logger.info('Identified peptides: %s', df1_peptides_f[~df1_peptides_f['decoy2']].shape[0])
         logger.info('Identified proteins: %s', df_proteins_f.shape[0])
         logger.info('Identified protein groups: %s', df_protein_groups.shape[0])
-        logger.info('The search is finished.')
+        logger.info('Processing finished.')
 
         return df1_peptides, df1_peptides_f, df_proteins, df_proteins_f, df_protein_groups
     else:
@@ -228,6 +228,7 @@ def write_tables(outfolder, outbasename, df1, df1_f2,
             columns=utils.get_columns_to_output(df_proteins_f.columns, 'protein'))
     df_protein_groups.to_csv(utils.filename(outfolder, outbasename, 'protein_group'), sep='\t', index=False,
             columns=utils.get_columns_to_output(df_protein_groups.columns, 'protein'))
+    logger.info('Output tables saved.')
 
 
 def process_file(args, decoy2=None):
