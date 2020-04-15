@@ -171,7 +171,13 @@ def process_fasta(df, path_to_fasta, decoy_prefix, decoy_infix=False):
 
 def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
     proteins_dict = dict()
-    for proteins, protein_descriptions, peptide, pep, ms1_i in df1_f2[['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity']].values:
+    cols = ['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity']
+    tagnames = []
+    for c in df1_f2.columns:
+        if c[:4] == 'tag_':
+            cols.append(c)
+            tagnames.append(c)
+    for proteins, protein_descriptions, peptide, pep, ms1_i, *tags in df1_f2[cols].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):
             if prot not in proteins_dict:
                 proteins_dict[prot] = dict()
@@ -185,6 +191,8 @@ def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False
                 proteins_dict[prot]['sq'] = 0
                 proteins_dict[prot]['score'] = dict()
                 proteins_dict[prot]['q-value'] = 1.0
+                for tag in tagnames:
+                    proteins_dict[prot][tag] = 0.
                 if not decoy_infix:
                     proteins_dict[prot]['decoy'] = prot.startswith(decoy_prefix)
                 else:
@@ -195,6 +203,8 @@ def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False
             proteins_dict[prot]['TOP3'].append(ms1_i)
             proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
             proteins_dict[prot]['PSMs'] += 1
+            for tag, val in zip(tagnames, tags):
+                proteins_dict[prot][tag] += val
 
     df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
     if path_to_fasta:
