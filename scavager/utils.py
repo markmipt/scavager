@@ -11,20 +11,23 @@ from collections import Counter, defaultdict
 from .utils_figures import get_fdbinsize
 from scipy.stats import scoreatpercentile
 from sklearn.isotonic import IsotonicRegression
-from scipy.stats import binom
 import logging
 import warnings
 warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
 logger = logging.getLogger(__name__)
 
+
 class NoDecoyError(ValueError):
     pass
+
 
 class WrongInputError(NotImplementedError):
     pass
 
+
 class EmptyFileError(ValueError):
     pass
+
 
 def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula, correction=None, loglabel=None):
     kw = dict(key=key, is_decoy=is_decoy, reverse=reverse, full_output=True,
@@ -94,8 +97,10 @@ def convert_tandem_cleave_rule_to_regexp(cleavage_rule):
                 out_rules.append('(?=[%s])' % (cut, ))
     return '|'.join(out_rules)
 
+
 def calc_TOP3(df):
     df['TOP3'] = df['TOP3'].apply(lambda z: sum(sorted(z, reverse=True)[:3]))
+
 
 def calc_NSAF(df):
     df['NSAF'] = df['PSMs'] / df['length']
@@ -105,11 +110,13 @@ def calc_NSAF(df):
         df['LOG10_NSAF'] = np.log10(df['NSAF'])
     df.loc[pd.isna(df['NSAF']), 'NSAF'] = 0.0
 
+
 def keywithmaxval(d):
     #this method is much faster than using max(prots.iterkeys(), key=(lambda key: prots[key]))
     v = list(d.values())
     k = list(d.keys())
     return k[v.index(max(v))]
+
 
 def add_protein_groups(df):
     pept_prots = defaultdict(set)
@@ -161,6 +168,7 @@ def process_fasta(df, path_to_fasta, decoy_prefix, decoy_infix=False):
 
     return df
 
+
 def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
     proteins_dict = dict()
     for proteins, protein_descriptions, peptide, pep, ms1_i in df1_f2[['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity']].values:
@@ -200,6 +208,7 @@ def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False
     df_proteins['score'] = df_proteins['score'].apply(lambda x: np.prod(list(x.values())))
     return df_proteins
 
+
 def calc_sq(df_raw):
     protein = df_raw['sequence']
     protein = protein.replace('L', 'I')
@@ -217,6 +226,7 @@ def calc_sq(df_raw):
                     psq[j + y] = True
     return float(sum(psq)) / len(psq) * 100
 
+
 def get_output_basename(fname, suffix=''):
     basename = os.path.basename(fname)
     splt = os.path.splitext(basename)
@@ -224,6 +234,7 @@ def get_output_basename(fname, suffix=''):
     if 'pep' not in splt[1].lower():
         basename = os.path.splitext(basename)[0]
     return basename + suffix
+
 
 def get_output_folder(folder, fname):
     if not folder:
@@ -233,17 +244,20 @@ def get_output_folder(folder, fname):
             os.mkdir(folder)
         return folder
 
+
 def calc_RT(seq, RC):
     try:
         return achrom.calculate_RT(seq, RC)
     except Exception:
         return 0
 
+
 def is_decoy(proteins, decoy_prefix, decoy_infix=False):
     if not decoy_infix:
         return all(z.startswith(decoy_prefix) for z in proteins)
     else:
         return all(decoy_infix in z for z in proteins)
+
 
 def is_group_specific(proteins, group_prefix, group_infix, decoy_prefix, decoy_infix=None):
     if group_infix:
@@ -252,8 +266,10 @@ def is_group_specific(proteins, group_prefix, group_infix, decoy_prefix, decoy_i
         return all(z.startswith(decoy_prefix+group_prefix) or z.startswith(group_prefix) for z in proteins)
     return all(z.startswith(group_prefix) for z in proteins)
 
+
 def is_decoy_2(proteins, decoy_set):
     return all(z in decoy_set for z in proteins)
+
 
 def split_fasta_decoys(db, decoy_prefix, decoy_infix=None):
     decoy_dbnames = set()
@@ -269,6 +285,7 @@ def split_fasta_decoys(db, decoy_prefix, decoy_infix=None):
         len(all_decoys_2), len(decoy_dbnames))
     return all_decoys_2
 
+
 def split_decoys(df, decoy_prefix, decoy_infix=False):
     all_decoys = set()
     for proteins in df[['protein']].values:
@@ -282,11 +299,13 @@ def split_decoys(df, decoy_prefix, decoy_infix=False):
     df['decoy1'] = df.apply(lambda x: x['decoy'] and not x['decoy2'], axis=1)
     return df, all_decoys_2
 
+
 def remove_column_hit_rank(df):
     if 'hit_rank' in df.columns:
         return df[df['hit_rank'] == 1]
     else:
         return df
+
 
 def parse_mods(df_raw):
     mods_counter = {}
@@ -308,6 +327,7 @@ def parse_mods(df_raw):
             mod_name = 'mass shift %.3f at %s' % (mod_mass, aa)
             mods_counter[mod_name] = mods_counter.get(mod_name, 0) + 1
     return mods_counter
+
 
 def parse_mods_msgf(df_raw):
     mods_counter = {}
@@ -337,6 +357,7 @@ def add_mod_info(df_raw, mod):
     else:
         return (1 if mods_counter.get(mod, 0) >= 1 else 0)
 
+
 def prepare_mods(df):
     all_mods = set()
     for cnt in df['mods_counter'].values:
@@ -344,6 +365,7 @@ def prepare_mods(df):
             all_mods.add(k)
     for mod in all_mods:
         df[mod] = df.apply(add_mod_info, axis=1, mod=mod)
+
 
 def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False, fdr=0.01, decoy2set=None):
     if not cleavage_rule:
@@ -378,11 +400,8 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         # df1['expect'] = -df1['MS-GF:RawScore'].values
         # df1['MS-GF:EValue'] = df1['MS-GF:RawScore']
 
-
     if set(df1['protein_descr'].str[0]) == {None}:
         # MSFragger
-
-
         logger.debug('Adapting MSFragger DataFrame.')
         logger.debug('Proteins before: %s', df1.loc[1, 'protein'])
         protein = df1['protein'].apply(lambda row: [x.split(None, 1) for x in row])
@@ -459,12 +478,8 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         df1['RT diff'] = df1['RT exp']
     return df1, decoy2set
 
-def get_features(dataframe):
-    feature_columns = dataframe.columns
-    columns_to_remove = []
-    for feature in feature_columns:
-        # if feature not in ['expect', 'hyperscore', 'calc_neutral_pep_mass', 'bscore', 'yscore',
-        if feature not in ['calc_neutral_pep_mass', 'bscore', 'yscore',
+
+_standard_features = {'calc_neutral_pep_mass', 'bscore', 'yscore',
                 'massdiff', 'massdiff_ppm', 'nextscore', 'RT pred', 'RT diff',
                 'sumI', 'RT exp', 'precursor_neutral_mass', 'massdiff_int',
                 'num_missed_cleavages', 'tot_num_ions', 'num_matched_ions', 'length',
@@ -473,23 +488,26 @@ def get_features(dataframe):
                 'MeanRelErrorAll', 'MeanRelErrorTop7', 'NumMatchedMainIons', 'StdevErrorAll',
                 'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio',
                 'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio', 'fragmentMT', 'ISOWIDTHDIFF',
-                'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'IPGF2', 'hyperscore']:#, 'IPGF3']:
-                # 'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'IPGF2']:#, 'IPGF3']:
-                # 'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'hyperscore']:#, 'IPGF3']:
-                #'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std']:#, 'IPGF', 'hyperscore']:#, 'IPGF3']:
-                # 'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'hyperscore']:#, 'IPGF3']:
-                #'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'hyperscore']:#, 'IPGF3']:
-                #'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF']:#, 'IPGF3']:
+                'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'IPGF2', 'hyperscore'}
+
+def get_features(dataframe):
+    feature_columns = dataframe.columns
+    columns_to_remove = []
+    for feature in feature_columns:
+        if feature not in _standard_features:
             if not feature.startswith('mass shift') and not feature.startswith('matched_y') and not feature.startswith('matched_b'):
                 columns_to_remove.append(feature)
     feature_columns = feature_columns.drop(columns_to_remove)
     return sorted(feature_columns)
 
+
 def get_X_array(df, feature_columns):
     return df.loc[:, feature_columns].values
 
+
 def get_Y_array(df):
     return df.loc[:, 'decoy1'].values.astype(float)
+
 
 def variant_peptides(allowed_peptides, group_prefix, group_infix):
     if allowed_peptides:
@@ -499,6 +517,7 @@ def variant_peptides(allowed_peptides, group_prefix, group_infix):
         allowed_peptides = None
 
     return allowed_peptides, group_prefix, group_infix
+
 
 def filename(outfolder, outbasename, ftype):
     type_suffix = {
@@ -510,6 +529,7 @@ def filename(outfolder, outbasename, ftype):
         'protein_group': '_protein_groups.tsv'
     }
     return os.path.join(outfolder, outbasename + type_suffix[ftype])
+
 
 def get_cat_model(df, feature_columns):
     logger.info('Starting machine learning...')
@@ -553,6 +573,7 @@ def get_cat_model(df, feature_columns):
 
     return model
 
+
 def calc_PEP(df, pep_ratio=1.0, reduced=False):
     if not reduced:
         feature_columns = get_features(df)
@@ -594,6 +615,7 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
     pep_min = df['ML score'].min()
     df['log_score'] = np.log10(df['ML score'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
 
+
 def calc_qvals(df, ratio):
     logger.debug('Q-value calculation started...')
     df_t_1 = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2',
@@ -604,6 +626,7 @@ def calc_qvals(df, ratio):
     df.loc[~df['decoy1'], 'q_uncorrected'] = df_t['q']
     df.loc[df['decoy1'], 'q'] = None
     df.loc[df['decoy1'], 'q_uncorrected'] = None
+
 
 _columns_to_output = {
     'psm_full': ['peptide', 'length', 'spectrum', 'q', 'q_uncorrected', 'ML score', 'modifications', 'assumed_charge',
@@ -623,14 +646,19 @@ _columns_to_output = {
          'length', 'all proteins', 'groupleader'],
     }
 
+
 def get_columns_to_output(columns, out_type):
     present = set(columns)
     order = _columns_to_output[out_type]
     labels = [label for label in order if label in present]
     if out_type == 'psm_full':
         labels.extend(present.difference(order))
+    for c in columns:
+        if c[:4] == 'tag_':
+            labels.append(c)
     logger.debug('Writing out %s table, q_uncorrected present: %s', out_type, 'q_uncorrected' in labels)
     return labels
+
 
 def calc_psms(df, df_filt):
     peptides = Counter(df_filt['peptide'])
