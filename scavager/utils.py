@@ -169,15 +169,20 @@ def process_fasta(df, path_to_fasta, decoy_prefix, decoy_infix=False):
     return df
 
 
-def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False):
+def get_tag_names(columns):
+    return [c for c in columns if c[:4] == 'tag_']
+
+
+def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False, pif_threshold=0):
     proteins_dict = dict()
-    cols = ['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity']
-    tagnames = []
-    for c in df1_f2.columns:
-        if c[:4] == 'tag_':
-            cols.append(c)
-            tagnames.append(c)
-    for proteins, protein_descriptions, peptide, pep, ms1_i, *tags in df1_f2[cols].values:
+    cols = ['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity', 'PIF']
+    tagnames = get_tag_names(df1_f2.columns)
+    tagsums = []
+    for c in tagnames:
+        cols.append(c)
+        tagsums.append(0.)
+
+    for proteins, protein_descriptions, peptide, pep, ms1_i, pif, *tags in df1_f2[cols].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):
             if prot not in proteins_dict:
                 proteins_dict[prot] = dict()
@@ -203,8 +208,12 @@ def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False
             proteins_dict[prot]['TOP3'].append(ms1_i)
             proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
             proteins_dict[prot]['PSMs'] += 1
-            for tag, val in zip(tagnames, tags):
-                proteins_dict[prot][tag] += val
+            if pif > pif_threshold:
+                for tag, val in zip(tagnames, tags):
+                    proteins_dict[prot][tag] += val
+        if pif > pif_threshold:
+            for i, (tag, val) in enumerate(zip(tagnames, tags)):
+                tagsums[i] += val
 
     df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
     if path_to_fasta:
@@ -216,7 +225,9 @@ def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False
     calc_NSAF(df_proteins)
     calc_TOP3(df_proteins)
     df_proteins['score'] = df_proteins['score'].apply(lambda x: np.prod(list(x.values())))
-    return df_proteins
+    norm = np.array(tagsums)
+    df_proteins[tagnames] /= norm
+    return df_proteins, norm
 
 
 def calc_sq(df_raw):
@@ -498,7 +509,7 @@ _standard_features = {'calc_neutral_pep_mass', 'bscore', 'yscore',
                 'MeanRelErrorAll', 'MeanRelErrorTop7', 'NumMatchedMainIons', 'StdevErrorAll',
                 'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio',
                 'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio', 'fragmentMT', 'ISOWIDTHDIFF',
-                'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'IPGF2', 'hyperscore'}
+                'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'IPGF2', 'hyperscore', 'PIF'}
 
 def get_features(dataframe):
     feature_columns = dataframe.columns
@@ -647,11 +658,11 @@ _columns_to_output = {
     'psm': ['peptide', 'length', 'spectrum', 'q', 'q_uncorrected','ML score', 'modifications', 'assumed_charge',
          'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred',
-         'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF'],
+         'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF', 'PIF'],
     'peptide': ['peptide', '#PSMs', 'length', 'spectrum', 'q', 'q_uncorrected', 'ML score', 'modifications',
          'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp',
-         'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF'],
+         'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF', 'PIF'],
     'protein': ['dbname', 'description', 'PSMs', 'peptides', 'NSAF', 'TOP3', 'sq', 'score', 'q', 'q_uncorrected',
          'length', 'all proteins', 'groupleader'],
     }
@@ -663,9 +674,10 @@ def get_columns_to_output(columns, out_type):
     labels = [label for label in order if label in present]
     if out_type == 'psm_full':
         labels.extend(present.difference(order))
-    for c in columns:
-        if c[:4] == 'tag_':
-            labels.append(c)
+    if out_type != 'psm_full':
+        for c in columns:
+            if c[:4] == 'tag_':
+                labels.append(c)
     logger.debug('Writing out %s table, q_uncorrected present: %s', out_type, 'q_uncorrected' in labels)
     return labels
 
