@@ -181,6 +181,12 @@ def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False
     for c in tagnames:
         cols.append(c)
         tagsums.append(0.)
+    have_pif = 'PIF' in df1_f2.columns
+    if not have_pif:
+        logger.debug('PIF not found.')
+        if pif_threshold > 0:
+            logger.warning('PIF not found, threshold will not be applied.')
+        df1_f2['PIF'] = 0.
 
     for proteins, protein_descriptions, peptide, pep, ms1_i, pif, *tags in df1_f2[cols].values:
         for prot, prot_descr in zip(proteins, protein_descriptions):
@@ -211,10 +217,12 @@ def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False
             if pif > pif_threshold:
                 for tag, val in zip(tagnames, tags):
                     proteins_dict[prot][tag] += val
-        if pif > pif_threshold:
+        if not have_pif or pif > pif_threshold:
             for i, (tag, val) in enumerate(zip(tagnames, tags)):
                 tagsums[i] += val
 
+    if not have_pif:
+        df1_f2.drop('PIF', axis='columns', inplace=True)
     df_proteins = pd.DataFrame.from_dict(proteins_dict, orient='index').reset_index()
     if path_to_fasta:
         df_proteins = process_fasta(df_proteins, path_to_fasta, decoy_prefix, decoy_infix)
