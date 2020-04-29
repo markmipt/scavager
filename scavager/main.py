@@ -14,6 +14,7 @@ from . import utils
 from .utils_figures import plot_outfigures
 logger = logging.getLogger(__name__)
 
+
 def process_files(args):
     """Run Scavager for multiple files (`args['file']` should be a list of file names)
     and possibly for their union.
@@ -62,7 +63,7 @@ def process_files(args):
         logger.info('Skipping individual file processing.')
     if N == 1:
         return retv
-    if errors >= N-1:
+    if errors >= N - 1:
         if N > 1:
             logger.info('Union will not be run because %s out of %s files were processed with errors.', errors, N)
         return retvalues
@@ -97,7 +98,7 @@ def process_files(args):
         if args['no_correction']:
             q_label = 'q_uncorrected'
         logger.debug('Filtering union PSMs by %s.', q_label)
-        all_psms_f2 = all_psms[(~all_psms['decoy1']) & (all_psms[q_label] < args['fdr'] / 100)]
+        all_psms_f2 = all_psms.loc[(~all_psms['decoy1']) & (all_psms[q_label] < args['fdr'] / 100)].copy()
 
         peptides, peptides_f, proteins, proteins_f, protein_groups = build_output_tables(all_psms,
             all_psms_f2, decoy_prots_2, args, 'PEP', calc_qvals=False)
@@ -106,7 +107,7 @@ def process_files(args):
             retvalues.append(1)
             return retvalues
 
-        logger.debug('Protein FDR in full table: %f%%', 100*aux.fdr(proteins, is_decoy='decoy2'))
+        logger.debug('Protein FDR in full table: %f%%', 100 * aux.fdr(proteins, is_decoy='decoy2'))
 
         write_tables(outfolder, 'union' + args['name_suffix'], all_psms, all_psms_f2, peptides_f, proteins_f, protein_groups)
         if args['create_pepxml']:
@@ -200,7 +201,6 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
         df1[nonnormalized] = df1[tagnames]
         df1[tagnames] /= norm
         df1_f2[tagnames] /= norm
-
         df1_peptides = df1.sort_values(key, ascending=True).drop_duplicates(['peptide'])
         df1_peptides_f = utils.filter_custom(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
             key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1,
@@ -226,8 +226,7 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
         return (None,) * 5
 
 
-def write_tables(outfolder, outbasename, df1, df1_f2,
-    df1_peptides_f, df_proteins_f, df_protein_groups):
+def write_tables(outfolder, outbasename, df1, df1_f2, df1_peptides_f, df_proteins_f, df_protein_groups):
     df1.to_csv(utils.filename(outfolder, outbasename, 'psm_full'),
         sep='\t', index=False, columns=utils.get_columns_to_output(df1.columns, 'psm_full'))
     df1_f2[~df1_f2['decoy2']].to_csv(utils.filename(outfolder, outbasename, 'psm'),

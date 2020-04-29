@@ -3,7 +3,6 @@ import pandas as pd
 from pyteomics import pepxml, achrom, auxiliary as aux, mass, fasta, mzid, parser
 import numpy as np
 import random
-SEED = 42
 from catboost import CatBoostClassifier
 from sklearn.model_selection import train_test_split
 import os
@@ -15,6 +14,7 @@ import logging
 import warnings
 warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
 logger = logging.getLogger(__name__)
+SEED = 42
 
 
 class NoDecoyError(ValueError):
@@ -112,7 +112,7 @@ def calc_NSAF(df):
 
 
 def keywithmaxval(d):
-    #this method is much faster than using max(prots.iterkeys(), key=(lambda key: prots[key]))
+    # this method is much faster than using max(prots.iterkeys(), key=(lambda key: prots[key]))
     v = list(d.values())
     k = list(d.keys())
     return k[v.index(max(v))]
@@ -229,7 +229,8 @@ def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False
     df_proteins['length'] = df_proteins['sequence'].apply(len)
     df_proteins['sq'] = df_proteins.apply(calc_sq, axis=1)
     df_proteins['peptides'] = df_proteins['peptides set'].apply(len)
-    df_proteins['PSMs'] = df_proteins.apply(lambda x: max(x['PSMs'], x['peptides']), axis=1)#df_proteins.loc[:, ['PSMs', 'peptides']].max(axis=1)
+    df_proteins['PSMs'] = df_proteins.apply(lambda x: max(x['PSMs'], x['peptides']), axis=1)
+    # df_proteins.loc[:, ['PSMs', 'peptides']].max(axis=1)
     calc_NSAF(df_proteins)
     calc_TOP3(df_proteins)
     df_proteins['score'] = df_proteins['score'].apply(lambda x: np.prod(list(x.values())))
@@ -292,7 +293,7 @@ def is_group_specific(proteins, group_prefix, group_infix, decoy_prefix, decoy_i
     if group_infix:
         return all(group_infix in z for z in proteins)
     if not decoy_infix:
-        return all(z.startswith(decoy_prefix+group_prefix) or z.startswith(group_prefix) for z in proteins)
+        return all(z.startswith(decoy_prefix + group_prefix) or z.startswith(group_prefix) for z in proteins)
     return all(z.startswith(group_prefix) for z in proteins)
 
 
@@ -310,23 +311,22 @@ def split_fasta_decoys(db, decoy_prefix, decoy_infix=None):
     decoy_dbnames = sorted(decoy_dbnames)
     random.seed(SEED)
     all_decoys_2 = set(random.sample(decoy_dbnames, len(decoy_dbnames) // 2))
-    logger.debug('Marking %s out of %s decoys as decoy2',
-        len(all_decoys_2), len(decoy_dbnames))
+    logger.debug('Marking %s out of %s decoys as decoy2', len(all_decoys_2), len(decoy_dbnames))
     return all_decoys_2
 
 
-def split_decoys(df, decoy_prefix, decoy_infix=False):
+def split_decoys(df):
+    """Split decoys into decoy1 and decoy2 without FASTA file"""
     all_decoys = set()
-    for proteins in df[['protein']].values:
-        for dbname in proteins[0]:
-            if (not decoy_infix and dbname.startswith(decoy_prefix)) or (decoy_infix and decoy_infix in dbname):
-                all_decoys.add(dbname)
-    all_decoys = sorted(all_decoys) # sort is done for working of random SEED
+    for proteins in df.loc[df.decoy, 'protein'].values:
+        all_decoys.update(proteins)
+    logger.debug('proteins: %s', proteins)
+    all_decoys = sorted(all_decoys)  # sort is done for working of random SEED
     random.seed(SEED)
-    all_decoys_2 = set(random.sample(all_decoys, int(len(all_decoys)/2)))
+    all_decoys_2 = set(random.sample(all_decoys, int(len(all_decoys) / 2)))
     df['decoy2'] = df['protein'].apply(is_decoy_2, decoy_set=all_decoys_2)
     df['decoy1'] = df.apply(lambda x: x['decoy'] and not x['decoy2'], axis=1)
-    return df, all_decoys_2
+    return all_decoys_2
 
 
 def remove_column_hit_rank(df):
@@ -351,7 +351,7 @@ def parse_mods(df_raw):
                 aa = 'C_term'
                 mod_mass = round(mod_mass - 17.002735, 3)
             else:
-                aa = sequence[aa_ind-1]
+                aa = sequence[aa_ind - 1]
                 mod_mass = round(mod_mass - mass.std_aa_mass[aa], 3)
             mod_name = 'mass shift %.3f at %s' % (mod_mass, aa)
             mods_counter[mod_name] = mods_counter.get(mod_name, 0) + 1
@@ -371,7 +371,7 @@ def parse_mods_msgf(df_raw):
                 aa = 'C_term'
                 mod_mass = round(mod_mass, 3)
             else:
-                aa = sequence[aa_ind-1]
+                aa = sequence[aa_ind - 1]
                 mod_mass = round(mod_mass, 3)
             mod_name = 'mass shift %.3f at %s' % (mod_mass, aa)
             mods_counter[mod_name] = mods_counter.get(mod_name, 0) + 1
@@ -396,7 +396,7 @@ def prepare_mods(df):
         df[mod] = df.apply(add_mod_info, axis=1, mod=mod)
 
 
-def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cleavage_rule=False, fdr=0.01, decoy2set=None):
+def prepare_dataframe(infile_path, decoy_prefix=None, decoy_infix=False, cleavage_rule=False, fdr=0.01, decoy2set=None):
     if not cleavage_rule:
         cleavage_rule = parser.expasy_rules['trypsin']
     if infile_path.lower().endswith('.pep.xml') or infile_path.lower().endswith('.pepxml'):
@@ -415,7 +415,7 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=cleavage_rule))
 
     if 'MS-GF:EValue' in df1.columns:
-        #MSGF search engine
+        # MSGF search engine
         ftype = 'msgf'
         df1['peptide'] = df1['PeptideSequence']
         df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=cleavage_rule))
@@ -426,8 +426,6 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
         df1['protein'] = df1['accession']
         df1['protein_descr'] = df1['protein description']
         df1['expect'] = df1['MS-GF:EValue']
-        # df1['expect'] = -df1['MS-GF:RawScore'].values
-        # df1['MS-GF:EValue'] = df1['MS-GF:RawScore']
 
     if set(df1['protein_descr'].str[0]) == {None}:
         # MSFragger
@@ -470,10 +468,10 @@ def prepare_dataframe(infile_path, decoy_prefix='DECOY_', decoy_infix=False, cle
     df1['massdiff_ppm'] = 1e6 * (df1['massdiff'] - df1['massdiff_int'] * 1.003354) / df1['calc_neutral_pep_mass']
 
     df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)
-    if not np.sum(df1['decoy']):
+    if not df1.decoy.sum():
         raise NoDecoyError()
     if decoy2set is None:
-        df1, decoy2set = split_decoys(df1, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)
+        decoy2set = split_decoys(df1)
     else:
         df1['decoy2'] = df1['protein'].apply(lambda p: all(x in decoy2set for x in p))
         df1['decoy1'] = df1['decoy'] & (~df1['decoy2'])
@@ -518,6 +516,7 @@ _standard_features = {'calc_neutral_pep_mass', 'bscore', 'yscore',
                 'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio',
                 'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio', 'fragmentMT', 'ISOWIDTHDIFF',
                 'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'IPGF2', 'hyperscore', 'PIF'}
+
 
 def get_features(dataframe):
     feature_columns = dataframe.columns
@@ -570,7 +569,7 @@ def get_cat_model(df, feature_columns):
     # df = df.drop_duplicates(subset = ['orig_spectrum', 'peptide'])
     # logger.info(df.shape)
 
-    train, test = train_test_split(df, test_size = 0.3, random_state=SEED)
+    train, test = train_test_split(df, test_size=0.3, random_state=SEED)
     x_train = get_X_array(train, feature_columns)
     y_train = get_Y_array(train)
     x_test = get_X_array(test, feature_columns)
@@ -592,7 +591,8 @@ def get_cat_model(df, feature_columns):
     logger.debug('Best iteration: %d', best_iter)
     X = get_X_array(df, feature_columns)
     y = get_Y_array(df)
-    model = CatBoostClassifier(iterations=int(best_iter*1.0/0.7), learning_rate=ln_rt, depth=8, loss_function='Logloss', random_state=SEED, logging_level='Silent')
+    model = CatBoostClassifier(iterations=int(best_iter / 0.7), learning_rate=ln_rt, depth=8, loss_function='Logloss',
+                               random_state=SEED, logging_level='Silent')
     model.fit(X, y)
     logger.debug('Feature importance:')
     for fi, fn in sorted(zip(model.feature_importances_, feature_columns), key=lambda x: x[0])[::-1]:
@@ -636,7 +636,7 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
     H2, b2 = np.histogram(df0_t['ML score'].values, bins=cbins)
 
     H2[H2 == 0] = 1
-    H1_2 = H1 * (1 + 1./pep_ratio) / H2
+    H1_2 = H1 * (1 + 1. / pep_ratio) / H2
     ir = IsotonicRegression(y_min=0, y_max=1.0)
     ir.fit(b1[:-1], H1_2)
     df['PEP'] = ir.predict(df['ML score'].values)
