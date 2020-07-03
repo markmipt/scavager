@@ -47,5 +47,5 @@ Algorithm can be run with following command (works with Python2.7/Python3+):
 Links
 -----
 
-- BitBucket repo & issue tracker: https://bitbucket.org/markmipt/scavager
+- GitHub repo & issue tracker: https://github.com/markmipt/scavager
 - Mailing list: pyteomics@googlegroups.com, markmipt@gmail.com
