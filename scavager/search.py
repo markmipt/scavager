@@ -50,6 +50,7 @@ def run():
         help='Disable the use of "+1" correction when calculating q-values, even if it results in highly inaccurate q-values.')
     parser.add_argument('--name-suffix', default='',
         help='Suffix to add to all created file names to avoid possible name clashes.')
+    parser.add_argument('--union-name-suffix', default='', help='Suffix to add to union file names.')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debugging output')
     parser.add_argument('-V', '--version', action='version',
         version='%s' % (pkg_resources.require("scavager")[0], ))

@@ -109,7 +109,8 @@ def process_files(args):
 
         logger.debug('Protein FDR in full table: %f%%', 100 * aux.fdr(proteins, is_decoy='decoy2'))
 
-        write_tables(outfolder, 'union' + args['name_suffix'], all_psms, all_psms_f2, peptides_f, proteins_f, protein_groups)
+        write_tables(outfolder, 'union' + args['name_suffix'] + args['union_name_suffix'],
+            all_psms, all_psms_f2, peptides_f, proteins_f, protein_groups)
         if args['create_pepxml']:
             pepxmltk.easy_write_pepxml(files, utils.filename(outfolder, 'union', 'pepxml'),
             set(all_psms_f2.loc[~all_psms_f2['decoy2'], 'spectrum']))
