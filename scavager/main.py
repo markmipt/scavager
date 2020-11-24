@@ -118,7 +118,7 @@ def process_files(args):
         if len(all_psms_f2[~all_psms_f2['decoy2']]) >= 3:
             plot_outfigures(all_psms, all_psms_f2[~all_psms_f2['decoy2']], peptides,
                 peptides_f[~peptides_f['decoy2']],
-                outfolder, 'union' + args['name_suffix'], df_proteins=proteins,
+                outfolder, 'union' + args['name_suffix'] + args['union_name_suffix'], df_proteins=proteins,
                 df_proteins_f=proteins_f[~proteins_f['decoy2']],
                 separate_figures=args['separate_figures'])
 
