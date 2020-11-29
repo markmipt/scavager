@@ -188,7 +188,9 @@ def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False
             logger.warning('PIF not found, threshold will not be applied.')
         df1_f2['PIF'] = 0.
 
-    for proteins, protein_descriptions, peptide, pep, ms1_i, pif, *tags in df1_f2[cols].values:
+    for tup in df1_f2[cols].values:
+        # avoid star unpacking to support Python 2.7 for a little longer
+        (proteins, protein_descriptions, peptide, pep, ms1_i, pif), tags = tup[:6], tup[6:]
         for prot, prot_descr in zip(proteins, protein_descriptions):
             if prot not in proteins_dict:
                 proteins_dict[prot] = dict()
