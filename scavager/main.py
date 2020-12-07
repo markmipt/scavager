@@ -75,10 +75,11 @@ def process_files(args):
             outbasename = utils.get_output_basename(file, args['name_suffix'])
             csvname = utils.filename(outfolder, outbasename, 'psm_full')
             try:
-                df = pd.read_csv(csvname, sep='\t')
-                for key in ['protein', 'peptide_next_aa', 'peptide_prev_aa', 'num_tol_term',
-                'protein_descr', 'modifications', 'mods_counter']:
-                    df[key] = df[key].apply(ast.literal_eval)
+                df = pd.read_csv(csvname, sep='\t', converters={
+                    key: ast.literal_eval for key in [
+                    'protein', 'peptide_next_aa', 'peptide_prev_aa', 'num_tol_term',
+                    'protein_descr', 'modifications', 'mods_counter']})
+                df['file'] = outbasename
                 psm_full_dfs.append(df)
             except FileNotFoundError:
                 logger.warning('File %s not found, skipping...', csvname)
