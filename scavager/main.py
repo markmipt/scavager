@@ -90,6 +90,10 @@ def process_files(args):
             except FileNotFoundError as e:
                 logger.debug('Exception when reading %s: %s (%s)', file, e, e.args)
                 logger.warning('File %s not found, skipping...', csvname)
+        if not psm_full_dfs:
+            logger.error('No PSMs found for union calculation.')
+            retvalues.append(1)
+            return retvalues
         all_psms = pd.concat(psm_full_dfs, sort=False)
         all_psms.reset_index(inplace=True, drop=True)
         logger.debug('Recovered PSMs for analysis: %s, of those: %s decoy1, %s decoy2, %s have q < %s',
