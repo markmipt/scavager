@@ -14,6 +14,12 @@ from . import utils
 from .utils_figures import plot_outfigures
 logger = logging.getLogger(__name__)
 
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
+
+
 
 def process_files(args):
     """Run Scavager for multiple files (`args['file']` should be a list of file names)
@@ -81,7 +87,8 @@ def process_files(args):
                         'protein_descr', 'modifications', 'mods_counter']})
                 df['file'] = os.path.basename(file)
                 psm_full_dfs.append(df)
-            except FileNotFoundError:
+            except FileNotFoundError as e:
+                logger.debug('Exception when reading %s: %s (%s)', file, e, e.args)
                 logger.warning('File %s not found, skipping...', csvname)
         all_psms = pd.concat(psm_full_dfs, sort=False)
         all_psms.reset_index(inplace=True, drop=True)
