@@ -223,7 +223,7 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
         df_proteins = df_proteins[~df_proteins['decoy1']]
         df_proteins_f = utils.filter_custom(df_proteins, fdr=outfdr, key='score', is_decoy='decoy2',
             reverse=False, remove_decoy=True, ratio=prot_ratio, formula=1, correction=correction, loglabel='proteins')
-        utils.add_protein_groups(df_proteins_f)
+        utils.add_protein_groups(df_proteins_f, args['ms1'])
         df_protein_groups = df_proteins_f[df_proteins_f['groupleader']]
 
         logger.info('Final results at %s%% FDR level:', args['fdr'])

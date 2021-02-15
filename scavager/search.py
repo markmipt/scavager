@@ -20,6 +20,8 @@ def run():
         help='Create a pepXML file with validated PSMs (requires pepxmltk)')
     parser.add_argument('-db', '--database', help='path to fasta file. \
                         Used for sequence coverage and LFQ calculation')
+    parser.add_argument('-ms1', '--ms1', help='path to DirectMS1 protein scores. \
+                        Used for better protein grouping', default='')
     parser.add_argument('-fdr', '--fdr', help='false discovery rate in %%', default=1.0, type=float)
     parser.add_argument('-e', '--enzyme', help='Used only for msgf+ and Morpheus search engines.\
     Cleavage rule in quotes! X!Tandem style for cleavage rules. Examples:\

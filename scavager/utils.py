@@ -117,12 +117,12 @@ def keywithmaxval(d):
     k = list(d.keys())
     return k[v.index(max(v))]
 
+def add_protein_groups(df, df_ms1_path):
 
-def add_protein_groups(df):
     pept_prots = defaultdict(set)
     prot_prots = defaultdict(set)
     prot_pepts = dict()
-    for peptides, dbname in df[['peptides set', 'dbname']].values:
+    for peptides, dbname in df.sample(frac=1).reset_index(drop=True)[['peptides set', 'dbname']].values:
         prot_pepts[dbname] = peptides
         for peptide in peptides:
             pept_prots[peptide].add(dbname)
@@ -130,8 +130,23 @@ def add_protein_groups(df):
         for dbname in prots:
             prot_prots[dbname].update(prots)
     prot_pepts_count = dict()
-    for k, v in prot_pepts.items():
-        prot_pepts_count[k] = len(v)
+    prot_pepts_count2 = dict()
+    
+    if not df_ms1_path:
+        for k, v in prot_pepts.items():
+            prot_pepts_count[k] = len(v)
+            prot_pepts_count2[k] = len(v)
+
+    else:
+        df_ms1 = pd.read_csv(df_ms1_path, sep='\t')
+        ms1s = dict()
+        for qval, prot in df_ms1[['score', 'dbname']].values:
+            ms1s[prot] = float(qval)
+
+        max_k = max(ms1s.values())
+        for k, v in prot_pepts.items():
+            prot_pepts_count[k] = len(v) + ms1s.get(k, 0) / max_k
+            prot_pepts_count2[k] = len(v)
     tostay = set()
     while pept_prots:
         bestprot = keywithmaxval(prot_pepts_count)
@@ -139,7 +154,13 @@ def add_protein_groups(df):
         for pep in prot_pepts[bestprot]:
             for k in pept_prots[pep]:
                 prot_pepts_count[k] -= 1
+                prot_pepts_count2[k] -= 1
             del pept_prots[pep]
+            
+        for k, v in list(prot_pepts_count2.items()):
+            if v == 0:
+                del prot_pepts_count[k]
+                del prot_pepts_count2[k]
     df['groupleader'] = df['dbname'].apply(lambda x: x in tostay)
     df['all proteins'] = df['dbname'].apply(lambda x: ';'.join(prot_prots[x]))
 
