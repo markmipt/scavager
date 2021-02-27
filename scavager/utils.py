@@ -12,6 +12,7 @@ from scipy.stats import scoreatpercentile
 from sklearn.isotonic import IsotonicRegression
 import logging
 import warnings
+import re
 warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
 logger = logging.getLogger(__name__)
 SEED = 42
@@ -117,8 +118,8 @@ def keywithmaxval(d):
     k = list(d.keys())
     return k[v.index(max(v))]
 
-def add_protein_groups(df, df_ms1_path):
 
+def add_protein_groups(df, df_ms1_path):
     pept_prots = defaultdict(set)
     prot_prots = defaultdict(set)
     prot_pepts = dict()
@@ -186,7 +187,6 @@ def process_fasta(df, path_to_fasta, decoy_prefix, decoy_infix=False):
                 lambda x: x['sequence'] if x['sequence'] else protsS.get(
                     x['dbname'].replace(decoy_infix, ''), protsS.get(x['dbname'].split(' ')[0].replace(decoy_infix, ''), '')),
                 axis=1)
-
     return df
 
 
@@ -312,7 +312,9 @@ def is_decoy(proteins, decoy_prefix, decoy_infix=False):
         return all(decoy_infix in z for z in proteins)
 
 
-def is_group_specific(proteins, group_prefix, group_infix, decoy_prefix, decoy_infix=None):
+def is_group_specific(proteins, group_prefix, group_infix, group_regex, decoy_prefix, decoy_infix=None):
+    if group_regex:
+        return all(re.search(group_regex, z) for z in proteins)
     if group_infix:
         return all(group_infix in z for z in proteins)
     if not decoy_infix:
@@ -560,14 +562,14 @@ def get_Y_array(df):
     return df.loc[:, 'decoy1'].values.astype(float)
 
 
-def variant_peptides(allowed_peptides, group_prefix, group_infix):
+def variant_peptides(allowed_peptides, group_prefix, group_infix, group_regex):
     if allowed_peptides:
         with open(allowed_peptides) as f:
             allowed_peptides = set(pseq.strip().split()[0] for pseq in f)
     else:
         allowed_peptides = None
 
-    return allowed_peptides, group_prefix, group_infix
+    return allowed_peptides, group_prefix, group_infix, group_regex
 
 
 def filename(outfolder, outbasename, ftype):

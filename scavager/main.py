@@ -20,7 +20,6 @@ except NameError:
     FileNotFoundError = IOError
 
 
-
 def process_files(args):
     """Run Scavager for multiple files (`args['file']` should be a list of file names)
     and possibly for their union.
@@ -139,7 +138,7 @@ def process_files(args):
     return retvalues
 
 
-def filter_dataframe(df1, outfdr, correction, allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix):
+def filter_dataframe(df1, outfdr, correction, allowed_peptides, group_prefix, group_infix, group_regex, decoy_prefix, decoy_infix):
     d2 = df1['decoy2'].sum()
     d = df1['decoy'].sum()
     pep_ratio = d2 / d
@@ -162,14 +161,14 @@ def filter_dataframe(df1, outfdr, correction, allowed_peptides, group_prefix, gr
             logger.warning('Using only default search scores for machine learning...')
             utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
 
-    if allowed_peptides or group_prefix or group_infix:
+    if allowed_peptides or group_prefix or group_infix or group_regex:
         prev_num = df1.shape[0]
         if allowed_peptides:
             df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
         else:
             logger.debug('Protein column looks like this: %s', df1['protein'].iloc[0])
             df1 = df1[df1['protein'].apply(utils.is_group_specific,
-                group_prefix=group_prefix, group_infix=group_infix,
+                group_prefix=group_prefix, group_infix=group_infix, group_regex=group_regex,
                 decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)]
 
         logger.info('%.1f%% of identifications were dropped during group-specific filtering.',
@@ -299,15 +298,15 @@ def process_file(args, decoy2=None):
         return 1
 
     try:
-        allowed_peptides, group_prefix, group_infix = utils.variant_peptides(
-            args['allowed_peptides'], args['group_prefix'], args['group_infix'])
+        allowed_peptides, group_prefix, group_infix, group_regex = utils.variant_peptides(
+            args['allowed_peptides'], args['group_prefix'], args['group_infix'], args['group_regex'])
     except ValueError as e:
         logger.error(e.args[0])
         return -3
 
     try:
         df1, df1_f2 = filter_dataframe(df1, outfdr, correction,
-            allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix)
+            allowed_peptides, group_prefix, group_infix, group_regex, decoy_prefix, decoy_infix)
     except CatBoostError as e:
         logger.error('There was an error in Catboost: %s', e.args)
         return -11
