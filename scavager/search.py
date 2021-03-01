@@ -37,7 +37,7 @@ def run():
         ' for group-specific FDR calculation')
     group.add_argument('-gp', '--group-prefix', help='Protein prefix for group-specific filtering. '
         'For example, if `mut_` prefix, peptides from mut_ or DECOY_mut_ proteins will be reported. '
-        'This can useful in proteogenomic searches for group-specific FDR calculation')
+        'This can be useful in proteogenomic searches for group-specific FDR calculation.')
     group.add_argument('-gi', '--group-infix', help='Protein infix for group-specific filtering.')
     group.add_argument('-gre', '--group-regex', help='Regular expression to match protein descriptions for group-specific filtering.')
     parser.add_argument('-sf', '--separate-figures', action='store_true',
