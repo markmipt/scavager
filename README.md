@@ -39,6 +39,12 @@ OR
 
     scavager -h
 
+Protein grouping using DirectMS1 results
+----------------------------------------
+Protein groups can be generated using parsimony principle combined with information from MS1 spectra:
+    scavager path_to_pepXML/MZID -ms1 path_to_DirectMS1_proteins_full_noexclusion.tsv
+
+
 Links
 -----
 
