@@ -42,7 +42,15 @@ OR
 Protein grouping using DirectMS1 results
 ----------------------------------------
 Protein groups can be generated using parsimony principle combined with information from MS1 spectra:
+
     scavager path_to_pepXML/MZID -ms1 path_to_DirectMS1_proteins_full_noexclusion.tsv
+
+Details on combination of parsimony principle and MS1 information are available at: https://github.com/markmipt/protein_inference_using_DirectMS1
+
+Protein grouping for indistinguishable proteins
+------------------------------------------------
+By default, when multiple proteins have the same sets of peptides, the Scavager choose protein group leader using alphabetical order. However, it is possible
+to choose group leader randomly by using "-sr" option. The same option can be used with MS1 spectra information if multiple proteins have both same sets of MS/MS identifications and DirectMS1 scores.
 
 
 Links

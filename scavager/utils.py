@@ -119,11 +119,23 @@ def keywithmaxval(d):
     return k[v.index(max(v))]
 
 
-def add_protein_groups(df, df_ms1_path):
+def add_protein_groups(df, df_ms1_path, sort_random=True):
+    # input: df - pandas dataframe which contains columns "dbname" with protein names and 
+    #        "peptides set" with set of peptide sequences belong to this protein and identified in MS/MS analysis. 
+    #        df_ms1_path - path to the table *_proteins_full_noexclusion.tsv which is output by DirectMS1 analysis.
+    #        sort_random - if True, the proteins with same scores are chosen randomly. Otherwise, they are chosen
+    #        in alphabetical order.
+    # output: pandas dataframe with new columns "groupleader" (True for protein group leaders) and 
+    #         "all proteins" (list of proteins belong to protein group and separeted by ';')
+    
     pept_prots = defaultdict(set)
     prot_prots = defaultdict(set)
     prot_pepts = dict()
-    for peptides, dbname in df.sample(frac=1).reset_index(drop=True)[['peptides set', 'dbname']].values:
+    if not sort_random:
+        iter_list = df.sort_values(by='dbname').reset_index(drop=True)[['peptides set', 'dbname']].values
+    else:
+        iter_list = df.sample(frac=1).reset_index(drop=True)[['peptides set', 'dbname']].values
+    for peptides, dbname in iter_list:
         prot_pepts[dbname] = peptides
         for peptide in peptides:
             pept_prots[peptide].add(dbname)
