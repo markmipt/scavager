@@ -41,7 +41,6 @@ def run():
         'For example, if `mut_` prefix, peptides from mut_ or DECOY_mut_ proteins will be reported. '
         'This can be useful in proteogenomic searches for group-specific FDR calculation.')
     group.add_argument('-gi', '--group-infix', help='Protein infix for group-specific filtering.')
-    group.add_argument('-gre', '--group-regex', help='Regular expression to match protein descriptions for group-specific filtering.')
     parser.add_argument('-sf', '--separate-figures', action='store_true',
         help='save figures as separate files')
     parser.add_argument('-u', '--union', action='store_true',

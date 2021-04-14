@@ -12,7 +12,6 @@ from scipy.stats import scoreatpercentile
 from sklearn.isotonic import IsotonicRegression
 import logging
 import warnings
-import re
 warnings.formatwarning = lambda msg, *args, **kw: str(msg) + '\n'
 logger = logging.getLogger(__name__)
 SEED = 42
@@ -120,14 +119,14 @@ def keywithmaxval(d):
 
 
 def add_protein_groups(df, df_ms1_path, sort_random=True):
-    # input: df - pandas dataframe which contains columns "dbname" with protein names and 
-    #        "peptides set" with set of peptide sequences belong to this protein and identified in MS/MS analysis. 
+    # input: df - pandas dataframe which contains columns "dbname" with protein names and
+    #        "peptides set" with set of peptide sequences belong to this protein and identified in MS/MS analysis.
     #        df_ms1_path - path to the table *_proteins_full_noexclusion.tsv which is output by DirectMS1 analysis.
     #        sort_random - if True, the proteins with same scores are chosen randomly. Otherwise, they are chosen
     #        in alphabetical order.
-    # output: pandas dataframe with new columns "groupleader" (True for protein group leaders) and 
+    # output: pandas dataframe with new columns "groupleader" (True for protein group leaders) and
     #         "all proteins" (list of proteins belong to protein group and separeted by ';')
-    
+
     pept_prots = defaultdict(set)
     prot_prots = defaultdict(set)
     prot_pepts = dict()
@@ -144,7 +143,7 @@ def add_protein_groups(df, df_ms1_path, sort_random=True):
             prot_prots[dbname].update(prots)
     prot_pepts_count = dict()
     prot_pepts_count2 = dict()
-    
+
     if not df_ms1_path:
         for k, v in prot_pepts.items():
             prot_pepts_count[k] = len(v)
@@ -169,7 +168,7 @@ def add_protein_groups(df, df_ms1_path, sort_random=True):
                 prot_pepts_count[k] -= 1
                 prot_pepts_count2[k] -= 1
             del pept_prots[pep]
-            
+
         for k, v in list(prot_pepts_count2.items()):
             if v == 0:
                 del prot_pepts_count[k]
@@ -199,6 +198,7 @@ def process_fasta(df, path_to_fasta, decoy_prefix, decoy_infix=False):
                 lambda x: x['sequence'] if x['sequence'] else protsS.get(
                     x['dbname'].replace(decoy_infix, ''), protsS.get(x['dbname'].split(' ')[0].replace(decoy_infix, ''), '')),
                 axis=1)
+
     return df
 
 
@@ -324,9 +324,7 @@ def is_decoy(proteins, decoy_prefix, decoy_infix=False):
         return all(decoy_infix in z for z in proteins)
 
 
-def is_group_specific(proteins, group_prefix, group_infix, group_regex, decoy_prefix, decoy_infix=None):
-    if group_regex:
-        return all(re.search(group_regex, z) for z in proteins)
+def is_group_specific(proteins, group_prefix, group_infix, decoy_prefix, decoy_infix=None):
     if group_infix:
         return all(group_infix in z for z in proteins)
     if not decoy_infix:
@@ -574,14 +572,14 @@ def get_Y_array(df):
     return df.loc[:, 'decoy1'].values.astype(float)
 
 
-def variant_peptides(allowed_peptides, group_prefix, group_infix, group_regex):
+def variant_peptides(allowed_peptides, group_prefix, group_infix):
     if allowed_peptides:
         with open(allowed_peptides) as f:
             allowed_peptides = set(pseq.strip().split()[0] for pseq in f)
     else:
         allowed_peptides = None
 
-    return allowed_peptides, group_prefix, group_infix, group_regex
+    return allowed_peptides, group_prefix, group_infix
 
 
 def filename(outfolder, outbasename, ftype):
