@@ -38,8 +38,6 @@ def process_files(args):
         (first encountered error code is returned).
     """
 
-    print(args)
-
     files = args['file']
     N = len(files)
     logger.info('%d file(s) to process.', N)
