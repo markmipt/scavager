@@ -177,7 +177,7 @@ def filter_dataframe(df1, outfdr, correction, allowed_peptides, group_prefix, gr
             (100 * float(prev_num - df1.shape[0]) / prev_num))
 
         if df1[df1['decoy']].shape[0] == 0:
-            logger.warning('0 decoy identifications are present in the group. Please check'
+            logger.warning('0 decoy identifications are present in the group. Please check '
             'that allowed_peptides contains decoy peptides or that decoy proteins have group_prefix/infix!')
 
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
