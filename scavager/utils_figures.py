@@ -1,4 +1,3 @@
-from __future__ import division
 from scipy.stats import scoreatpercentile
 from pyteomics import mass
 from collections import Counter
@@ -15,7 +14,6 @@ try:
 except ImportError:
     pass
 import re
-import sys
 import logging
 logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib.font_manager').disabled = True
@@ -26,7 +24,7 @@ aa_color_1 = '#fca110'
 aa_color_2 = '#a41389'
 
 def _get_sf(fig):
-    return isinstance(fig, str) if sys.version_info.major == 3 else isinstance(fig, basestring)
+    return isinstance(fig, str)
 
 
 def get_basic_distributions(df):
@@ -132,6 +130,7 @@ def plot_legend(fig, subplot_max_x, subplot_start):
 
 def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
     separate_figures = _get_sf(fig)
+    label = 'amino acid ID rate'
     if separate_figures:
         plt.figure()
     else:
@@ -166,7 +165,10 @@ def plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, subplot_i):
     plt.bar(range(len(vals)), vals, color=clrs)
     plt.xticks(range(len(lbls)), lbls)
     plt.hlines(1.0, range(len(vals))[0]-1, range(len(vals))[-1]+1)
-    plt.ylabel('amino acid ID rate')
+    plt.ylabel(label)
+    if separate_figures:
+        plt.savefig(outpath(fig, label, '.png'))
+        plt.close()
 
 
 def calc_max_x_value(df, df_proteins):
