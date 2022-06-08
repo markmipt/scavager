@@ -249,10 +249,10 @@ def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False
             proteins_dict[prot]['TOP3'].append(ms1_i)
             proteins_dict[prot]['score'][peptide] = min(proteins_dict[prot]['score'].get(peptide, 1.0), pep)
             proteins_dict[prot]['PSMs'] += 1
-            if pif > pif_threshold:
+            if pif >= pif_threshold:
                 for tag, val in zip(tagnames, tags):
                     proteins_dict[prot][tag] += val
-        if not have_pif or pif > pif_threshold:
+        if not have_pif or pif >= pif_threshold:
             for i, (tag, val) in enumerate(zip(tagnames, tags)):
                 tagsums[i] += val
 
