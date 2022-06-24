@@ -20,7 +20,6 @@ except NameError:
     FileNotFoundError = IOError
 
 
-
 def process_files(args):
     """Run Scavager for multiple files (`args['file']` should be a list of file names)
     and possibly for their union.
@@ -102,6 +101,16 @@ def process_files(args):
             (all_psms['q'] < args['fdr'] / 100).sum(), args['fdr'] / 100)
         utils.prepare_mods(all_psms)
         q_label = 'q'
+        # Ensure group-specific (we can get a full table when running with --quick-decoy or
+        # if a group-specific table is missing but a full table is present with the same name)
+        try:
+            allowed_peptides, group_prefix, group_infix = utils.variant_peptides(
+                args['allowed_peptides'], args['group_prefix'], args['group_infix'])
+        except ValueError as e:
+            logger.error(e.args[0])
+            return -3
+        all_psms = utils.filter_group(all_psms, allowed_peptides, group_prefix, group_infix, args['prefix'], args['infix'])
+
         if not (args['no_correction'] or args['force_correction']):
             logger.info('Using the corrected q-values for union.')
             all_psms_f2 = all_psms[(~all_psms['decoy1']) & (all_psms[q_label] < args['fdr'] / 100)]
@@ -163,22 +172,7 @@ def filter_dataframe(df1, outfdr, correction, allowed_peptides, group_prefix, gr
             logger.warning('Using only default search scores for machine learning...')
             utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
 
-    if allowed_peptides or group_prefix or group_infix:
-        prev_num = df1.shape[0]
-        if allowed_peptides:
-            df1 = df1[df1['peptide'].apply(lambda x: x in allowed_peptides)]
-        else:
-            logger.debug('Protein column looks like this: %s', df1['protein'].iloc[0])
-            df1 = df1[df1['protein'].apply(utils.is_group_specific,
-                group_prefix=group_prefix, group_infix=group_infix,
-                decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)]
-
-        logger.info('%.1f%% of identifications were dropped during group-specific filtering.',
-            (100 * float(prev_num - df1.shape[0]) / prev_num))
-
-        if df1[df1['decoy']].shape[0] == 0:
-            logger.warning('0 decoy identifications are present in the group. Please check '
-            'that allowed_peptides contains decoy peptides or that decoy proteins have group_prefix/infix!')
+    df1 = utils.filter_group(df1, allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix)
 
     pep_ratio = df1['decoy2'].sum() / df1['decoy'].sum()
     logger.debug('Peptide ratio within group: %s', pep_ratio)

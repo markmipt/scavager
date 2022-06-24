@@ -52,6 +52,26 @@ def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula,
     return df[df[qlabel] < fdr].copy()
 
 
+def filter_group(df, allowed_peptides, group_prefix, group_infix, decoy_prefix, decoy_infix):
+    if allowed_peptides or group_prefix or group_infix:
+        prev_num = df.shape[0]
+        if allowed_peptides:
+            df = df[df['peptide'].apply(lambda x: x in allowed_peptides)]
+        else:
+            logger.debug('Protein column looks like this: %s', df['protein'].iloc[0])
+            df = df[df['protein'].apply(is_group_specific,
+                group_prefix=group_prefix, group_infix=group_infix,
+                decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)]
+
+        logger.info('%.1f%% of identifications were dropped during group-specific filtering.',
+            (100 * float(prev_num - df.shape[0]) / prev_num))
+
+        if df['decoy'].sum() == 0:
+            logger.warning('0 decoy identifications are present in the group. Please check '
+            'that allowed_peptides contains decoy peptides or that decoy proteins have group_prefix/infix!')
+    return df
+
+
 def convert_tandem_cleave_rule_to_regexp(cleavage_rule):
 
     def get_sense(c_term_rule, n_term_rule):
