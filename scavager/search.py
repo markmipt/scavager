@@ -32,6 +32,7 @@ def run():
     "[RK]|{P},[M]|[X]" means mix of trypsin and cnbr', default='[RK]|{P}')
     parser.add_argument('-t', '--pif-threshold', type=float, default=0, metavar='PIF',
         help='Threshold value of PIF (in %%) for PSMs to be counted in proteins\' reported intensities (works with IdentiPy).')
+    parser.add_argument('-nn', '--no-norm', action='store_true', help='Do not normalize TMT intensities')
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument('-ap', '--allowed-peptides', help='Path to file with peptides considered '
         'in postsearch analysis. Sequences must be separated by new line. '
