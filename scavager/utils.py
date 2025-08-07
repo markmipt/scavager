@@ -226,7 +226,8 @@ def get_tag_names(columns):
     return [c for c in columns if c[:4] == 'tag_']
 
 
-def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False, pif_threshold=0):
+def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False, pif_threshold=0,
+    normalize=True):
     proteins_dict = dict()
     cols = ['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity', 'PIF']
     tagnames = get_tag_names(df1_f2.columns)
@@ -290,7 +291,8 @@ def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False
     calc_TOP3(df_proteins)
     df_proteins['score'] = df_proteins['score'].apply(lambda x: np.prod(list(x.values())))
     norm = np.array(tagsums)
-    df_proteins[tagnames] /= norm
+    if normalize:
+        df_proteins[tagnames] /= norm
     return df_proteins, norm
 
 

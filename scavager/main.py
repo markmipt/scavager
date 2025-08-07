@@ -67,6 +67,7 @@ def process_files(args):
                 errors += 1
     else:
         logger.info('Skipping individual file processing.')
+
     if N == 1:
         return retv
     if errors >= N - 1:
@@ -199,16 +200,22 @@ def build_output_tables(df1, df1_f2, decoy2, args, key='ML score', calc_qvals=Tr
         utils.calc_psms(df1, df1_f2)
 
         df_proteins, norm = utils.get_proteins_dataframe(df1_f2, decoy_prefix=args['prefix'],
-            decoy_infix=args['infix'], all_decoys_2=decoy2, path_to_fasta=path_to_fasta, pif_threshold=args['pif_threshold'])
+            decoy_infix=args['infix'], all_decoys_2=decoy2, path_to_fasta=path_to_fasta, pif_threshold=args['pif_threshold'],
+            normalize=(not args['no_norm']))
         tagnames = utils.get_tag_names(df1_f2.columns)
 
-        logger.debug('Normalizing tag intensities by: %s', norm)
+        if args['no_norm']:
+            logger.debug('Reporting raw tag intensities without normalization.')
+        else:
+            logger.debug('Normalizing tag intensities by: %s', norm)
         logger.debug('Channels: %s', tagnames)
 
-        nonnormalized = ['raw_' + n for n in tagnames]
-        df1[nonnormalized] = df1[tagnames]
-        df1[tagnames] /= norm
-        df1_f2[tagnames] /= norm
+        if not args['no_norm']:
+            nonnormalized = ['raw_' + n for n in tagnames]
+            df1[nonnormalized] = df1[tagnames]
+            df1[tagnames] /= norm
+            df1_f2[tagnames] /= norm
+
         df1_peptides = df1.sort_values(key, ascending=True).drop_duplicates(['peptide'])
         df1_peptides_f = utils.filter_custom(df1_peptides[~df1_peptides['decoy1']], fdr=outfdr,
             key=key, is_decoy='decoy2', reverse=False, remove_decoy=False, ratio=pep_ratio, formula=1,
