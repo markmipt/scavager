@@ -164,6 +164,9 @@ def filter_dataframe(df1, outfdr, correction, allowed_peptides, group_prefix, gr
     if num_psms_def < 100:
         logger.warning('Not enough statistics for ML training (%d PSMs is less than 100).', num_psms_def)
         utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
+    elif d2 < 10:
+        logger.warning('Not enough decoys for ML training (%d decoy PSMs is less than 10).', d2)
+        utils.calc_PEP(df1, pep_ratio=pep_ratio, reduced=True)
     else:
         utils.calc_PEP(df1, pep_ratio=pep_ratio)
         df1_f2 = utils.filter_custom(df1[~df1['decoy1']], fdr=outfdr, key='ML score',
