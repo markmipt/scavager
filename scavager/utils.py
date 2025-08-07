@@ -570,7 +570,7 @@ _standard_features = {'calc_neutral_pep_mass', 'bscore', 'yscore',
                 'MeanRelErrorAll', 'MeanRelErrorTop7', 'NumMatchedMainIons', 'StdevErrorAll',
                 'StdevErrorTop7', 'StdevRelErrorAll', 'StdevRelErrorTop7', 'NTermIonCurrentRatio',
                 'CTermIonCurrentRatio', 'ExplainedIonCurrentRatio', 'fragmentMT', 'ISOWIDTHDIFF',
-                'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'IPGF2', 'hyperscore', 'PIF'}
+                'MS1Intensity', 'sumI_to_MS1Intensity', 'nextscore_std', 'IPGF', 'IPGF2', 'hyperscore', 'PIF', 'compensation_voltage'}
 
 
 def get_features(dataframe):
@@ -717,15 +717,15 @@ _columns_to_output = {
          'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred',
          'RT diff', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2', 'PEP',
-         'MS1Intensity', 'ISOWIDTHDIFF'],
+         'MS1Intensity', 'ISOWIDTHDIFF', 'compensation_voltage'],
     'psm': ['peptide', 'length', 'spectrum', 'file', 'q', 'q_uncorrected','ML score', 'modifications', 'modified_peptide',
          'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred',
-         'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF', 'PIF'],
+         'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF', 'PIF', 'compensation_voltage'],
     'peptide': ['peptide', '#PSMs', 'length', 'spectrum', 'file', 'q', 'q_uncorrected', 'ML score', 'modifications',
          'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
          'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp',
-         'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF', 'PIF'],
+         'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF', 'PIF', 'compensation_voltage'],
     'protein': ['dbname', 'description', 'PSMs', 'peptides', 'NSAF', 'TOP3', 'sq', 'score', 'q', 'q_uncorrected',
          'length', 'all proteins', 'groupleader'],
     }
