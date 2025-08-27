@@ -470,6 +470,8 @@ def prepare_dataframe(infile_path, decoy_prefix=None, decoy_infix=False, cleavag
         df1 = df1[df1['Morpheus Score'] != 0]
         df1['expect'] = 1 / df1['Morpheus Score']
         df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=cleavage_rule))
+        #FIX IT
+        df1['mz_exp'] = 0
 
     if 'MS-GF:EValue' in df1.columns:
         # MSGF search engine
@@ -483,6 +485,7 @@ def prepare_dataframe(infile_path, decoy_prefix=None, decoy_infix=False, cleavag
         df1['protein'] = df1['accession']
         df1['protein_descr'] = df1['protein description']
         df1['expect'] = df1['MS-GF:EValue']
+        df1['mz_exp'] = df1['experimentalMassToCharge']
 
     if set(df1['protein_descr'].str[0]) == {None}:
         # MSFragger
@@ -520,6 +523,9 @@ def prepare_dataframe(infile_path, decoy_prefix=None, decoy_infix=False, cleavag
     else:
         df1['RT exp'] = df1['retention_time_sec'] / 60
         df1 = df1.drop(['retention_time_sec', ], axis=1)
+
+    if 'mz_exp' not in df1.columns:
+        df1['mz_exp'] = (df1['precursor_neutral_mass'] + df1['assumed_charge'] * 1.00727649) / df1['assumed_charge']
 
     df1['massdiff_int'] = df1['massdiff'].apply(lambda x: int(round(x, 0)))
     df1['massdiff_ppm'] = 1e6 * (df1['massdiff'] - df1['massdiff_int'] * 1.003354) / df1['calc_neutral_pep_mass']
@@ -563,7 +569,7 @@ def prepare_dataframe(infile_path, decoy_prefix=None, decoy_infix=False, cleavag
     return df1, decoy2set
 
 
-_standard_features = {'calc_neutral_pep_mass', 'bscore', 'yscore',
+_standard_features = {'calc_neutral_pep_mass', 'bscore', 'yscore', 'mz_exp',
                 'massdiff', 'massdiff_ppm', 'nextscore', 'RT pred', 'RT diff',
                 'sumI', 'RT exp', 'precursor_neutral_mass', 'massdiff_int',
                 'num_missed_cleavages', 'tot_num_ions', 'num_matched_ions', 'length',
@@ -724,16 +730,16 @@ def calc_qvals(df, ratio):
 _columns_to_output = {
     'psm_full': ['peptide', 'length', 'spectrum', 'file', 'q', 'q_uncorrected', 'ML score', 'modifications', 'assumed_charge',
          'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'mz_exp', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred',
          'RT diff', 'protein', 'protein_descr', 'decoy', 'decoy1', 'decoy2', 'PEP',
          'MS1Intensity', 'ISOWIDTHDIFF', 'compensation_voltage'],
     'psm': ['peptide', 'length', 'spectrum', 'file', 'q', 'q_uncorrected','ML score', 'modifications', 'modified_peptide',
          'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'mz_exp', 'massdiff_ppm', 'massdiff_int', 'RT exp', 'RT pred',
          'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF', 'PIF', 'compensation_voltage'],
     'peptide': ['peptide', '#PSMs', 'length', 'spectrum', 'file', 'q', 'q_uncorrected', 'ML score', 'modifications',
          'assumed_charge', 'num_missed_cleavages', 'num_tol_term', 'peptide_next_aa',
-         'peptide_prev_aa', 'calc_neutral_pep_mass', 'massdiff_ppm', 'massdiff_int', 'RT exp',
+         'peptide_prev_aa', 'calc_neutral_pep_mass', 'mz_exp', 'massdiff_ppm', 'massdiff_int', 'RT exp',
          'RT pred', 'protein', 'protein_descr', 'decoy', 'PEP', 'MS1Intensity', 'ISOWIDTHDIFF', 'PIF', 'compensation_voltage'],
     'protein': ['dbname', 'description', 'PSMs', 'peptides', 'NSAF', 'TOP3', 'sq', 'score', 'q', 'q_uncorrected',
          'length', 'all proteins', 'groupleader'],
