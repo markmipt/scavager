@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
+readme = {file = "README.md"}
+dependencies = {file = "requirements.txt"}
+
+[project]
+dynamic = ["version", "dependencies", "readme"]
+name = "scavager"
+authors = [
+  { name="Mark Ivanov", email="markmipt@gmail.com" },
+  { name="Lev Levitsky", email="lev.levitsky@phystech.edu" },
+  { name="Julia Bubis" }
+]
+description = "Proteomics post-search algorithm"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Intended Audience :: Science/Research"
+]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+
+[project.urls]
+Homepage = "https://github.com/markmipt/scavager"
+Issues = "https://github.com/markmipt/scavager/issues"
+
+[project.scripts]
+scavager = "scavager.search:run"
+scav2diffacto = "scavager.scav2diffacto:run"
+scav2nsaf = "scavager.scav2nsaf:run"

@@ -1,4 +1,3 @@
-from __future__ import division
 import pandas as pd
 from pyteomics import pepxml, achrom, auxiliary as aux, mass, fasta, mzid, parser
 import numpy as np
@@ -30,8 +29,7 @@ class EmptyFileError(ValueError):
 
 
 def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula, correction=None, loglabel=None):
-    kw = dict(key=key, is_decoy=is_decoy, reverse=reverse, full_output=True,
-        remove_decoy=False, ratio=ratio, formula=formula)
+    kw = dict(key=key, is_decoy=is_decoy, reverse=reverse, full_output=True, remove_decoy=False, ratio=ratio, formula=formula)
     df = df.copy()
     q = aux.qvalues(df, correction=1, **kw)
     q_uncorr = aux.qvalues(df, correction=0, **kw)
@@ -227,7 +225,7 @@ def get_tag_names(columns):
 
 
 def get_proteins_dataframe(df1_f2, decoy_prefix, all_decoys_2, decoy_infix=False, path_to_fasta=False, pif_threshold=0,
-    normalize=True):
+                           normalize=True):
     proteins_dict = dict()
     cols = ['protein', 'protein_descr', 'peptide', 'PEP', 'MS1Intensity', 'PIF']
     tagnames = get_tag_names(df1_f2.columns)
@@ -499,14 +497,7 @@ def prepare_dataframe(infile_path, decoy_prefix=None, decoy_infix=False, cleavag
             df1['protein_descr'] = protein.apply(lambda row: ['' for x in row])
         logger.debug('Proteins after: %s', df1.loc[1, 'protein'])
 
-    # if any(None in set(df1['protein_descr'].str[0])):
-    #     print('HERE')
-    #     df1['protein_descr'] = df1.apply(lambda x: x['protein_descr'] if x['protein_descr'] else x['protein'], axis=1)
     df1.loc[pd.isna(df1['protein_descr']), 'protein_descr'] = df1.loc[pd.isna(df1['protein_descr']), 'protein']
-    # try:
-    #     df1['expect'] = 1.0 / df1['bions_score_neg'].values
-    # except:
-    #     pass
 
     df1 = df1[~pd.isna(df1['peptide'])]
     if 'MS1Intensity' not in df1:
