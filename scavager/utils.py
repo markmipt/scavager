@@ -33,10 +33,15 @@ def filter_custom(df, fdr, key, is_decoy, reverse, remove_decoy, ratio, formula,
     kw = dict(key=key, is_decoy=is_decoy, reverse=reverse, full_output=True,
         remove_decoy=False, ratio=ratio, formula=formula)
     df = df.copy()
-    q = aux.qvalues(df, correction=1, **kw)
-    q_uncorr = aux.qvalues(df, correction=0, **kw)
-    df['q'] = q['q']
-    df['q_uncorrected'] = q_uncorr['q']
+    if df[is_decoy].sum() == 0:
+        logger.debug('No decoys were detected for q-value calculation')
+        df['q'] = 0
+        df['q_uncorrected'] = 0
+    else:
+        q = aux.qvalues(df, correction=1, **kw)
+        q_uncorr = aux.qvalues(df, correction=0, **kw)
+        df['q'] = q['q']
+        df['q_uncorrected'] = q_uncorr['q']
 
     if correction is not None:
         qlabel = 'q' if correction else 'q_uncorrected'
@@ -527,6 +532,9 @@ def prepare_dataframe(infile_path, decoy_prefix=None, decoy_infix=False, cleavag
     if 'mz_exp' not in df1.columns:
         df1['mz_exp'] = (df1['precursor_neutral_mass'] + df1['assumed_charge'] * 1.00727649) / df1['assumed_charge']
 
+    if 'num_missed_cleavages' not in df1.columns:
+        df1['num_missed_cleavages'] = df1['peptide'].apply(lambda x: parser.num_sites(x, rule=cleavage_rule))
+
     df1['massdiff_int'] = df1['massdiff'].apply(lambda x: int(round(x, 0)))
     df1['massdiff_ppm'] = 1e6 * (df1['massdiff'] - df1['massdiff_int'] * 1.003354) / df1['calc_neutral_pep_mass']
 
@@ -679,37 +687,44 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
     df0_d = df[df['decoy']]
     df0_d = df0_d[~df0_d['decoy1']]
 
-    binsize = min(get_fdbinsize(df0_t['ML score'].values), get_fdbinsize(df0_d['ML score'].values))
-    tmp = np.concatenate([df0_t['ML score'].values, df0_d['ML score'].values])
-    minv = df['ML score'].min()
-    maxv = df['ML score'].max()
-    lbin_s = scoreatpercentile(tmp, 1.0)
-    lbin = minv
-    if lbin_s and abs((lbin - lbin_s) / lbin_s) > 1.0:
-        lbin = lbin_s * 1.05
-    rbin_s = scoreatpercentile(tmp, 99.0)
-    rbin = maxv
-    if rbin_s and abs((rbin - rbin_s) / rbin_s) > 1.0:
-        rbin = rbin_s * 1.05
-    rbin += 1.5 * binsize
+
+    if len(df0_d) == 0:
+        logger.debug('No decoys were detected for PEP calculation')
+        df['PEP'] = 0
+
+    else:
+
+        binsize = min(get_fdbinsize(df0_t['ML score'].values), get_fdbinsize(df0_d['ML score'].values))
+        tmp = np.concatenate([df0_t['ML score'].values, df0_d['ML score'].values])
+        minv = df['ML score'].min()
+        maxv = df['ML score'].max()
+        lbin_s = scoreatpercentile(tmp, 1.0)
+        lbin = minv
+        if lbin_s and abs((lbin - lbin_s) / lbin_s) > 1.0:
+            lbin = lbin_s * 1.05
+        rbin_s = scoreatpercentile(tmp, 99.0)
+        rbin = maxv
+        if rbin_s and abs((rbin - rbin_s) / rbin_s) > 1.0:
+            rbin = rbin_s * 1.05
+        rbin += 1.5 * binsize
 
 
-    logger.debug('cbins: lbin = %s, rbin = %s, binsize = %s', lbin, rbin, binsize)
-    num_bins = ((rbin + 2 * binsize) - lbin) / binsize
-    if num_bins >= 100:
-        binsize = ((rbin + 2 * binsize) - lbin) / 100
         logger.debug('cbins: lbin = %s, rbin = %s, binsize = %s', lbin, rbin, binsize)
+        num_bins = ((rbin + 2 * binsize) - lbin) / binsize
+        if num_bins >= 100:
+            binsize = ((rbin + 2 * binsize) - lbin) / 100
+            logger.debug('cbins: lbin = %s, rbin = %s, binsize = %s', lbin, rbin, binsize)
 
-    cbins = np.arange(lbin, rbin + 2 * binsize, binsize)
+        cbins = np.arange(lbin, rbin + 2 * binsize, binsize)
 
-    H1, b1 = np.histogram(df0_d['ML score'].values, bins=cbins)
-    H2, b2 = np.histogram(df0_t['ML score'].values, bins=cbins)
+        H1, b1 = np.histogram(df0_d['ML score'].values, bins=cbins)
+        H2, b2 = np.histogram(df0_t['ML score'].values, bins=cbins)
 
-    H2[H2 == 0] = 1
-    H1_2 = H1 * (1 + 1. / pep_ratio) / H2
-    ir = IsotonicRegression(y_min=0, y_max=1.0)
-    ir.fit(b1[:-1], H1_2)
-    df['PEP'] = ir.predict(df['ML score'].values)
+        H2[H2 == 0] = 1
+        H1_2 = H1 * (1 + 1. / pep_ratio) / H2
+        ir = IsotonicRegression(y_min=0, y_max=1.0)
+        ir.fit(b1[:-1], H1_2)
+        df['PEP'] = ir.predict(df['ML score'].values)
 
     pep_min = df['ML score'].min()
     df['log_score'] = np.log10(df['ML score'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
@@ -717,14 +732,23 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
 
 def calc_qvals(df, ratio):
     logger.debug('Q-value calculation started...')
-    df_t_1 = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2',
-        remove_decoy=False, formula=1, full_output=True, ratio=ratio, correction=1)
-    df_t = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2',
-        remove_decoy=False, formula=1, full_output=True, ratio=ratio, correction=0)
-    df.loc[~df['decoy1'], 'q'] = df_t_1['q']
-    df.loc[~df['decoy1'], 'q_uncorrected'] = df_t['q']
-    df.loc[df['decoy1'], 'q'] = None
-    df.loc[df['decoy1'], 'q_uncorrected'] = None
+
+
+    if df['decoy2'].sum() == 0:
+        logger.debug('No decoys were detected for q-value calculation')
+        df['q'] = 0
+        df['q_uncorrected'] = 0
+        df.loc[df['decoy1'], 'q'] = None
+        df.loc[df['decoy1'], 'q_uncorrected'] = None
+    else:
+        df_t_1 = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2',
+            remove_decoy=False, formula=1, full_output=True, ratio=ratio, correction=1)
+        df_t = aux.qvalues(df[~df['decoy1']], key='ML score', is_decoy='decoy2',
+            remove_decoy=False, formula=1, full_output=True, ratio=ratio, correction=0)
+        df.loc[~df['decoy1'], 'q'] = df_t_1['q']
+        df.loc[~df['decoy1'], 'q_uncorrected'] = df_t['q']
+        df.loc[df['decoy1'], 'q'] = None
+        df.loc[df['decoy1'], 'q_uncorrected'] = None
 
 
 _columns_to_output = {
