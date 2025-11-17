@@ -14,11 +14,6 @@ from . import utils
 from .utils_figures import plot_outfigures
 logger = logging.getLogger(__name__)
 
-try:
-    FileNotFoundError
-except NameError:
-    FileNotFoundError = IOError
-
 
 def process_files(args):
     """Run Scavager for multiple files (`args['file']` should be a list of file names)

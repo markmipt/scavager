@@ -1,7 +1,6 @@
-from __future__ import division
 import argparse
 import logging
-import pkg_resources
+from importlib.metadata import version
 from . import main
 
 DEFAULT_DECOY_PREFIX = 'DECOY_'
@@ -57,8 +56,7 @@ def run():
         help='Suffix to add to all created file names to avoid possible name clashes.')
     parser.add_argument('--union-name-suffix', default='', help='Suffix to add to union file names.')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debugging output')
-    parser.add_argument('-V', '--version', action='version',
-        version='%s' % (pkg_resources.require("scavager")[0], ))
+    parser.add_argument('-V', '--version', action='version', version=version('scavager'))
     args = vars(parser.parse_args())
     logging.basicConfig(format='%(levelname)9s: %(asctime)s %(message)s',
             datefmt='[%H:%M:%S]', level=[logging.INFO, logging.DEBUG][args['debug']])
