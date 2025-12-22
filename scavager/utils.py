@@ -530,13 +530,16 @@ def prepare_dataframe(infile_path, decoy_prefix=None, decoy_infix=False, cleavag
     df1['massdiff_ppm'] = 1e6 * (df1['massdiff'] - df1['massdiff_int'] * 1.003354) / df1['calc_neutral_pep_mass']
 
     df1['decoy'] = df1['protein'].apply(is_decoy, decoy_prefix=decoy_prefix, decoy_infix=decoy_infix)
-    if not df1.decoy.sum():
-        raise NoDecoyError()
-    if decoy2set is None:
-        decoy2set = split_decoys(df1)
+    if df1.decoy.sum():
+        # raise NoDecoyError()
+        if decoy2set is None:
+            decoy2set = split_decoys(df1)
+        else:
+            df1['decoy2'] = df1['protein'].apply(lambda p: all(x in decoy2set for x in p))
+            df1['decoy1'] = df1['decoy'] & (~df1['decoy2'])
     else:
-        df1['decoy2'] = df1['protein'].apply(lambda p: all(x in decoy2set for x in p))
-        df1['decoy1'] = df1['decoy'] & (~df1['decoy2'])
+        df1['decoy2'] = False
+        df1['decoy1'] = False
     df1 = remove_column_hit_rank(df1)
 
     if ftype == 'pepxml':
