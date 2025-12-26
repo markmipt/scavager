@@ -540,6 +540,7 @@ def prepare_dataframe(infile_path, decoy_prefix=None, decoy_infix=False, cleavag
     else:
         df1['decoy2'] = False
         df1['decoy1'] = False
+        decoy2set = set()
     df1 = remove_column_hit_rank(df1)
 
     if ftype == 'pepxml':

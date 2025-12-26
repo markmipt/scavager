@@ -240,9 +240,13 @@ def get_bins_for_descriptors(inarrays):
         return np.arange(minv, maxv + 2, 1.0), 1.0
     binsize = False
     for inar in inarrays:
-        binsize_tmp = get_fdbinsize(inar)
-        if not binsize or binsize > binsize_tmp:
-            binsize = binsize_tmp
+        if len(inar):
+            try:
+                binsize_tmp = get_fdbinsize(inar)
+                if not binsize or binsize > binsize_tmp:
+                    binsize = binsize_tmp
+            except:
+                pass
     # binsize = get_fdbinsize(tmp)
     if binsize < float(maxv - minv) / 300:
         binsize = float(maxv - minv) / 300
