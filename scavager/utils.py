@@ -508,7 +508,7 @@ def prepare_dataframe(infile_path, decoy_prefix=None, decoy_infix=False, cleavag
     if 'MS1Intensity' not in df1:
         df1['MS1Intensity'] = 0.0
     df1['length'] = df1['peptide'].apply(len)
-    df1 = df1[df1['length'] >= 6]
+    # df1 = df1[df1['length'] >= 6]
     df1['spectrum'] = df1['spectrum'].apply(lambda x: x.split(' RTINS')[0])
     if 'retention_time_sec' not in df1.columns:
         if 'scan start time' in df1.columns:
