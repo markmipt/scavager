@@ -45,6 +45,9 @@ def process_files(args):
         return -102
     if args['database']:
         decoy_prots_2 = utils.split_fasta_decoys(args['database'], args['prefix'], args['infix'])
+        if len(decoy_prots_2) == 0:
+            decoy_prots_2 = None
+            logger.warning('No decoys were found in database!')
     else:
         decoy_prots_2 = None
         logger.info('Database file not provided. Decoy randomization will be done per PSM file.')
