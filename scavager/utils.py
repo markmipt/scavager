@@ -682,44 +682,46 @@ def calc_PEP(df, pep_ratio=1.0, reduced=False):
     df0_d = df[df['decoy']]
     df0_d = df0_d[~df0_d['decoy1']]
 
+    if not reduced:
+        if len(df0_d) == 0:
+            logger.debug('No decoys were detected for PEP calculation')
+            df['PEP'] = df['ML score']
 
-    if len(df0_d) == 0:
-        logger.debug('No decoys were detected for PEP calculation')
-        df['PEP'] = 0
+        else:
 
-    else:
-
-        binsize = min(get_fdbinsize(df0_t['ML score'].values), get_fdbinsize(df0_d['ML score'].values))
-        tmp = np.concatenate([df0_t['ML score'].values, df0_d['ML score'].values])
-        minv = df['ML score'].min()
-        maxv = df['ML score'].max()
-        lbin_s = scoreatpercentile(tmp, 1.0)
-        lbin = minv
-        if lbin_s and abs((lbin - lbin_s) / lbin_s) > 1.0:
-            lbin = lbin_s * 1.05
-        rbin_s = scoreatpercentile(tmp, 99.0)
-        rbin = maxv
-        if rbin_s and abs((rbin - rbin_s) / rbin_s) > 1.0:
-            rbin = rbin_s * 1.05
-        rbin += 1.5 * binsize
+            binsize = min(get_fdbinsize(df0_t['ML score'].values), get_fdbinsize(df0_d['ML score'].values))
+            tmp = np.concatenate([df0_t['ML score'].values, df0_d['ML score'].values])
+            minv = df['ML score'].min()
+            maxv = df['ML score'].max()
+            lbin_s = scoreatpercentile(tmp, 1.0)
+            lbin = minv
+            if lbin_s and abs((lbin - lbin_s) / lbin_s) > 1.0:
+                lbin = lbin_s * 1.05
+            rbin_s = scoreatpercentile(tmp, 99.0)
+            rbin = maxv
+            if rbin_s and abs((rbin - rbin_s) / rbin_s) > 1.0:
+                rbin = rbin_s * 1.05
+            rbin += 1.5 * binsize
 
 
-        logger.debug('cbins: lbin = %s, rbin = %s, binsize = %s', lbin, rbin, binsize)
-        num_bins = ((rbin + 2 * binsize) - lbin) / binsize
-        if num_bins >= 100:
-            binsize = ((rbin + 2 * binsize) - lbin) / 100
             logger.debug('cbins: lbin = %s, rbin = %s, binsize = %s', lbin, rbin, binsize)
+            num_bins = ((rbin + 2 * binsize) - lbin) / binsize
+            if num_bins >= 100:
+                binsize = ((rbin + 2 * binsize) - lbin) / 100
+                logger.debug('cbins: lbin = %s, rbin = %s, binsize = %s', lbin, rbin, binsize)
 
-        cbins = np.arange(lbin, rbin + 2 * binsize, binsize)
+            cbins = np.arange(lbin, rbin + 2 * binsize, binsize)
 
-        H1, b1 = np.histogram(df0_d['ML score'].values, bins=cbins)
-        H2, b2 = np.histogram(df0_t['ML score'].values, bins=cbins)
+            H1, b1 = np.histogram(df0_d['ML score'].values, bins=cbins)
+            H2, b2 = np.histogram(df0_t['ML score'].values, bins=cbins)
 
-        H2[H2 == 0] = 1
-        H1_2 = H1 * (1 + 1. / pep_ratio) / H2
-        ir = IsotonicRegression(y_min=0, y_max=1.0)
-        ir.fit(b1[:-1], H1_2)
-        df['PEP'] = ir.predict(df['ML score'].values)
+            H2[H2 == 0] = 1
+            H1_2 = H1 * (1 + 1. / pep_ratio) / H2
+            ir = IsotonicRegression(y_min=0, y_max=1.0)
+            ir.fit(b1[:-1], H1_2)
+            df['PEP'] = ir.predict(df['ML score'].values)
+    else:
+        df['PEP'] = df['ML score']
 
     pep_min = df['ML score'].min()
     df['log_score'] = np.log10(df['ML score'] - ((pep_min - 1e-15) if pep_min < 0 else 0))
