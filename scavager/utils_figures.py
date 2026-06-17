@@ -316,13 +316,16 @@ def plot_outfigures(df, df_f, df_peptides, df_peptides_f, outfolder, outbasename
     plot_basic_figures(df_peptides, df_peptides_f, fig, subplot_max_x, 4, 'peptides')
     if 'LOG10_NSAF' in df_proteins.columns:
         logger.debug('Plotting protein figures...')
-        try:
-            plot_protein_figures(df_proteins, df_proteins_f, fig, subplot_max_x, 7)
-            logger.debug('Plotting AA stats figures...')
-            plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, 9)
-            descriptor_start_index += 3
-        except ZeroDivisionError:
-            logger.warning('There was an error in protein stats calculation. No protein figures will be plotted.')
+        if len(df_proteins_f):
+            try:
+                plot_protein_figures(df_proteins, df_proteins_f, fig, subplot_max_x, 7)
+                logger.debug('Plotting AA stats figures...')
+                plot_aa_stats(df_f, df_proteins_f, fig, subplot_max_x, 9)
+                descriptor_start_index += 3
+            except ZeroDivisionError:
+                logger.warning('There was an error in protein stats calculation. No protein figures will be plotted.')
+        else:
+            logger.warning('The number of identified proteins is 0. No protein figures will be plotted.')
     logger.debug('Plotting descriptor figures...')
     plot_descriptors_figures(df, df_f, fig, subplot_max_x, descriptor_start_index)
     plt.grid(color='#EEEEEE')
