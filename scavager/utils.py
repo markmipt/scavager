@@ -645,20 +645,20 @@ def get_cat_model(df, feature_columns):
     # model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
 
     model = CatBoostClassifier(iterations=10000, learning_rate=0.01, depth=8, loss_function='Logloss', eval_metric='Logloss',
-                               od_type='Iter', od_wait=33, random_state=SEED, logging_level='Silent')
+                               od_type='Iter', od_wait=33, random_state=SEED, logging_level='Silent', thread_count=10)
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     best_iter = model.best_iteration_
     logger.debug('Best iteration: %d', best_iter)
     ln_rt = max(0.001, round(0.01 * best_iter / 1000, 3))
     model = CatBoostClassifier(iterations=10000, learning_rate=ln_rt, depth=8, loss_function='Logloss', eval_metric='Logloss',
-                               od_type='Iter', od_wait=33, random_state=SEED, logging_level='Silent')
+                               od_type='Iter', od_wait=33, random_state=SEED, logging_level='Silent', thread_count=10)
     model.fit(x_train, y_train, use_best_model=True, eval_set=(x_test, y_test))
     best_iter = model.best_iteration_
     logger.debug('Best iteration: %d', best_iter)
     X = get_X_array(df, feature_columns)
     y = get_Y_array(df)
     model = CatBoostClassifier(iterations=int(best_iter / 0.7), learning_rate=ln_rt, depth=8, loss_function='Logloss',
-                               random_state=SEED, logging_level='Silent')
+                               random_state=SEED, logging_level='Silent', thread_count=10)
     model.fit(X, y)
     logger.debug('Feature importance:')
     for fi, fn in sorted(zip(model.feature_importances_, feature_columns), key=lambda x: x[0])[::-1]:
